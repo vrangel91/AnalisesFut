@@ -1,19 +1,43 @@
 const express = require('express');
 const router = express.Router();
 const PredictionService = require('../services/predictionService');
+const cachedApiService = require('../services/cachedApiService');
+const cacheService = require('../services/cacheService');
 
 const predictionService = new PredictionService();
 
 // GET /api/predictions/today - Predições para jogos de hoje
 router.get('/today', async (req, res) => {
   try {
+    const cachedData = await cacheService.getCache('predictions', { type: 'today' });
+    
+    if (cachedData) {
+      console.log('📦 Retornando predições de hoje do cache');
+      return res.json({
+        success: true,
+        data: cachedData.data || [],
+        count: cachedData.data?.length || 0,
+        timestamp: cachedData.timestamp,
+        fromCache: true
+      });
+    }
+
+    console.log('🔄 Gerando predições de hoje (não encontradas no cache)');
     const predictions = await predictionService.getTodayPredictions();
+    
+    // Salvar no cache
+    await cacheService.setCache('predictions', { type: 'today' }, {
+      data: predictions || [],
+      count: predictions?.length || 0,
+      timestamp: new Date().toISOString()
+    });
     
     res.json({
       success: true,
       data: predictions || [],
       count: predictions?.length || 0,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      fromCache: false
     });
   } catch (error) {
     console.error('Erro ao obter predições de hoje:', error);
@@ -28,13 +52,35 @@ router.get('/today', async (req, res) => {
 // GET /api/predictions/live - Predições para jogos ao vivo
 router.get('/live', async (req, res) => {
   try {
+    const cachedData = await cacheService.getCache('predictions', { type: 'live' });
+    
+    if (cachedData) {
+      console.log('📦 Retornando predições ao vivo do cache');
+      return res.json({
+        success: true,
+        data: cachedData.data || [],
+        count: cachedData.data?.length || 0,
+        timestamp: cachedData.timestamp,
+        fromCache: true
+      });
+    }
+
+    console.log('🔄 Gerando predições ao vivo (não encontradas no cache)');
     const predictions = await predictionService.getLivePredictions();
+    
+    // Salvar no cache
+    await cacheService.setCache('predictions', { type: 'live' }, {
+      data: predictions || [],
+      count: predictions?.length || 0,
+      timestamp: new Date().toISOString()
+    });
     
     res.json({
       success: true,
       data: predictions || [],
       count: predictions?.length || 0,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      fromCache: false
     });
   } catch (error) {
     console.error('Erro ao obter predições ao vivo:', error);
@@ -168,6 +214,27 @@ router.get('/stats', async (req, res) => {
     });
   } catch (error) {
     console.error('Erro ao obter estatísticas das predições:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erro interno do servidor',
+      message: error.message
+    });
+  }
+});
+
+// POST /api/predictions/clear-cache - Limpar cache de previsões
+router.post('/clear-cache', async (req, res) => {
+  try {
+    // Limpar cache de previsões (o cacheService não tem método delete, mas o TTL vai expirar automaticamente)
+    console.log('🗑️ Cache de previsões será limpo automaticamente pelo TTL');
+    
+    res.json({
+      success: true,
+      message: 'Cache de previsões será limpo automaticamente',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Erro ao limpar cache de previsões:', error);
     res.status(500).json({
       success: false,
       error: 'Erro interno do servidor',

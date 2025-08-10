@@ -8,6 +8,8 @@ import Odds from './pages/Odds';
 import Statistics from './pages/Statistics';
 import Leagues from './pages/Leagues';
 import Teams from './pages/Teams';
+import CacheMonitor from './pages/CacheMonitor';
+import MyBets from './pages/MyBets';
 import './App.css';
 
 function App() {
@@ -24,6 +26,8 @@ function App() {
             <Route path="/statistics" element={<Statistics />} />
             <Route path="/leagues" element={<Leagues />} />
             <Route path="/teams" element={<Teams />} />
+            <Route path="/cache" element={<CacheMonitor />} />
+            <Route path="/my-bets" element={<MyBets />} />
           </Routes>
         </main>
       </div>

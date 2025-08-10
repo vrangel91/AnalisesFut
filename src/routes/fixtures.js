@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const apiService = require('../services/apiService');
+const cachedApiService = require('../services/cachedApiService');
 const moment = require('moment');
 
 // GET /api/fixtures - Listar todos os jogos com filtros
@@ -17,7 +17,8 @@ router.get('/', async (req, res) => {
       to,
       last,
       next,
-      page = 1
+      page = 1,
+      refresh = false
     } = req.query;
 
     const params = { page };
@@ -33,11 +34,13 @@ router.get('/', async (req, res) => {
     if (last) params.last = last;
     if (next) params.next = next;
 
-    const fixtures = await apiService.getFixtures(params);
+    const fixtures = await cachedApiService.getFixtures(params, refresh === 'true');
     
     res.json({
       success: true,
       data: fixtures,
+      cached: fixtures._cached || false,
+      responseTime: fixtures._responseTime,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -51,13 +54,16 @@ router.get('/', async (req, res) => {
 // GET /api/fixtures/today - Jogos de hoje
 router.get('/today', async (req, res) => {
   try {
+    const { refresh = false } = req.query;
     const today = moment().format('YYYY-MM-DD');
-    const fixtures = await apiService.getFixturesByDate(today);
+    const fixtures = await cachedApiService.getFixturesByDate(today, refresh === 'true');
     
     res.json({
       success: true,
       data: fixtures.response || [],
       date: today,
+      cached: fixtures._cached || false,
+      responseTime: fixtures._responseTime,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -71,11 +77,14 @@ router.get('/today', async (req, res) => {
 // GET /api/fixtures/live - Jogos ao vivo
 router.get('/live', async (req, res) => {
   try {
-    const fixtures = await apiService.getLiveFixtures();
+    const { refresh = false } = req.query;
+    const fixtures = await cachedApiService.getLiveFixtures(refresh === 'true');
     
     res.json({
       success: true,
       data: fixtures.response || [],
+      cached: fixtures._cached || false,
+      responseTime: fixtures._responseTime,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -90,11 +99,14 @@ router.get('/live', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const fixture = await apiService.getFixtureById(id);
+    const { refresh = false } = req.query;
+    const fixture = await cachedApiService.getFixtureById(id, refresh === 'true');
     
     res.json({
       success: true,
       data: fixture,
+      cached: fixture._cached || false,
+      responseTime: fixture._responseTime,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -109,7 +121,7 @@ router.get('/:id', async (req, res) => {
 router.get('/league/:leagueId', async (req, res) => {
   try {
     const { leagueId } = req.params;
-    const { season } = req.query;
+    const { season, refresh = false } = req.query;
     
     if (!season) {
       return res.status(400).json({
@@ -118,13 +130,15 @@ router.get('/league/:leagueId', async (req, res) => {
       });
     }
     
-    const fixtures = await apiService.getFixturesByLeague(leagueId, season);
+    const fixtures = await cachedApiService.getFixturesByLeague(leagueId, season, refresh === 'true');
     
     res.json({
       success: true,
       data: fixtures,
       league: leagueId,
       season,
+      cached: fixtures._cached || false,
+      responseTime: fixtures._responseTime,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -139,18 +153,20 @@ router.get('/league/:leagueId', async (req, res) => {
 router.get('/team/:teamId', async (req, res) => {
   try {
     const { teamId } = req.params;
-    const { last, next } = req.query;
+    const { last, next, refresh = false } = req.query;
     
     const params = { team: teamId };
     if (last) params.last = last;
     if (next) params.next = next;
     
-    const fixtures = await apiService.getFixtures(params);
+    const fixtures = await cachedApiService.getFixtures(params, refresh === 'true');
     
     res.json({
       success: true,
       data: fixtures,
       team: teamId,
+      cached: fixtures._cached || false,
+      responseTime: fixtures._responseTime,
       timestamp: new Date().toISOString()
     });
   } catch (error) {

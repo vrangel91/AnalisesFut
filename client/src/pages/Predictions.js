@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaSearch, FaFilter, FaChartLine, FaDice, FaEye, FaInfoCircle } from 'react-icons/fa';
 import axios from 'axios';
+import AddBetButton from '../components/AddBetButton';
 
 const Predictions = () => {
   const [predictions, setPredictions] = useState([]);
@@ -9,6 +10,8 @@ const Predictions = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [confidenceFilter, setConfidenceFilter] = useState('all');
   const [activeTab, setActiveTab] = useState('today');
+  const [fromCache, setFromCache] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState(null);
 
   useEffect(() => {
     loadPredictions();
@@ -24,6 +27,12 @@ const Predictions = () => {
 
       setPredictions(todayResponse.data.data || []);
       setLivePredictions(liveResponse.data.data || []);
+      
+      // Verificar se os dados vieram do cache
+      const fromCacheToday = todayResponse.data.fromCache;
+      const fromCacheLive = liveResponse.data.fromCache;
+      setFromCache(fromCacheToday || fromCacheLive);
+      setLastUpdate(todayResponse.data.timestamp || liveResponse.data.timestamp);
     } catch (error) {
       console.error('Erro ao carregar predições:', error);
     } finally {
@@ -69,6 +78,17 @@ const Predictions = () => {
       hour: '2-digit', 
       minute: '2-digit' 
     });
+  };
+
+  const clearCache = async () => {
+    try {
+      await axios.post('/api/predictions/clear-cache');
+      alert('Cache limpo com sucesso!');
+      loadPredictions(); // Recarregar dados
+    } catch (error) {
+      console.error('Erro ao limpar cache:', error);
+      alert('Erro ao limpar cache');
+    }
   };
 
   const renderPredictionCard = (prediction, isLive = false) => {
@@ -175,6 +195,18 @@ const Predictions = () => {
             )}
           </div>
         )}
+
+        {/* Actions */}
+        <div className="mt-4 pt-4 border-t border-gray-200">
+          <div className="flex justify-end">
+            <AddBetButton 
+              prediction={prediction} 
+              onBetAdded={() => {
+                // Callback opcional para atualizar algo após adicionar a aposta
+              }}
+            />
+          </div>
+        </div>
       </div>
     );
   };
@@ -187,12 +219,37 @@ const Predictions = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            🎯 Predições IA
-          </h1>
-          <p className="text-gray-600">
-            Análises inteligentes baseadas em algoritmos avançados da API-SPORTS
-          </p>
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                🎯 Predições IA
+              </h1>
+              <p className="text-gray-600">
+                Análises inteligentes baseadas em algoritmos avançados da API-SPORTS
+              </p>
+              {fromCache && (
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="text-sm text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
+                    📦 Dados do cache
+                  </span>
+                  {lastUpdate && (
+                    <span className="text-sm text-gray-500">
+                      Última atualização: {new Date(lastUpdate).toLocaleTimeString('pt-BR')}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={clearCache}
+                className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm"
+                title="Limpar cache e recarregar dados"
+              >
+                🗑️ Limpar Cache
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Tabs */}

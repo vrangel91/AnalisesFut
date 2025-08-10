@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { FaHome, FaFutbol, FaChartLine, FaDice, FaChartBar, FaTrophy, FaUsers } from 'react-icons/fa';
+import { FaHome, FaFutbol, FaChartLine, FaDice, FaChartBar, FaTrophy, FaUsers, FaDatabase, FaBookmark } from 'react-icons/fa';
 
 const Navbar = () => {
   const location = useLocation();
@@ -13,6 +13,8 @@ const Navbar = () => {
     { path: '/statistics', label: 'Estatísticas', icon: FaChartBar },
     { path: '/leagues', label: 'Ligas', icon: FaTrophy },
     { path: '/teams', label: 'Times', icon: FaUsers },
+    { path: '/cache', label: 'Cache', icon: FaDatabase },
+    { path: '/my-bets', label: 'Minhas Apostas', icon: FaBookmark },
   ];
 
   return (

@@ -1,10 +1,10 @@
-const apiService = require('./apiService');
+const cachedApiService = require('./cachedApiService');
 const H2HAnalysisService = require('./h2hAnalysisService');
 const moment = require('moment');
 
 class PredictionService {
   constructor() {
-    this.apiService = apiService;
+    this.apiService = cachedApiService;
     this.h2hService = new H2HAnalysisService();
   }
 

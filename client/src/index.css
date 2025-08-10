@@ -90,3 +90,37 @@ code {
 .status-scheduled {
   background: linear-gradient(135deg, #3742fa 0%, #5352ed 100%);
 }
+
+/* Input and Select styles for modal */
+.modal-input,
+.modal-select {
+  color: #111827 !important;
+  background-color: white !important;
+}
+
+.modal-input::placeholder,
+.modal-select::placeholder {
+  color: #6b7280 !important;
+}
+
+.modal-select option {
+  color: #111827 !important;
+  background-color: white !important;
+}
+
+/* Force text color for inputs and selects */
+input[type="text"],
+input[type="number"],
+select {
+  color: #111827 !important;
+}
+
+input[type="text"]::placeholder,
+input[type="number"]::placeholder {
+  color: #6b7280 !important;
+}
+
+select option {
+  color: #111827 !important;
+  background-color: white !important;
+}
