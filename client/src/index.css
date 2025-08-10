@@ -124,3 +124,31 @@ select option {
   color: #111827 !important;
   background-color: white !important;
 }
+
+/* Additional strong selectors for Predictions page */
+.predictions-page select,
+.predictions-page .modal-select,
+.predictions-page select.modal-select {
+  color: #111827 !important;
+  background-color: white !important;
+  font-weight: 500 !important;
+}
+
+.predictions-page select option,
+.predictions-page .modal-select option,
+.predictions-page select.modal-select option {
+  color: #111827 !important;
+  background-color: white !important;
+  font-weight: 500 !important;
+}
+
+/* Override any conflicting styles */
+.w-full.px-4.py-2.border.border-gray-300.rounded-lg.focus\\:ring-2.focus\\:ring-blue-500.focus\\:border-transparent.modal-select {
+  color: #111827 !important;
+  background-color: white !important;
+}
+
+.w-full.px-4.py-2.border.border-gray-300.rounded-lg.focus\\:ring-2.focus\\:ring-blue-500.focus\\:border-transparent.modal-select option {
+  color: #111827 !important;
+  background-color: white !important;
+}

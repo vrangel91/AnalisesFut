@@ -78,7 +78,7 @@ class CacheService {
       
       const stmt = this.db.prepare(`
         SELECT data, expires_at FROM cache 
-        WHERE id = ? AND (expires_at IS NULL OR expires_at > datetime('now'))
+        WHERE id = ? AND (expires_at IS NULL OR expires_at > datetime('now', 'localtime'))
       `);
       
       stmt.get(cacheKey, (err, row) => {
@@ -120,7 +120,7 @@ class CacheService {
     return new Promise((resolve) => {
       this.db.run(`
         DELETE FROM cache 
-        WHERE expires_at IS NOT NULL AND expires_at < datetime('now')
+        WHERE expires_at IS NOT NULL AND expires_at < datetime('now', 'localtime')
       `, (err) => {
         if (err) {
           console.error('Erro ao limpar cache expirado:', err);

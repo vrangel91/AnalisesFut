@@ -39,7 +39,8 @@ router.get('/', async (req, res) => {
     res.json({
       success: true,
       data: fixtures,
-      cached: fixtures._cached || false,
+      fromCache: fixtures._fromCache || false,
+      lastUpdate: fixtures._lastUpdate,
       responseTime: fixtures._responseTime,
       timestamp: new Date().toISOString()
     });
@@ -62,7 +63,8 @@ router.get('/today', async (req, res) => {
       success: true,
       data: fixtures.response || [],
       date: today,
-      cached: fixtures._cached || false,
+      fromCache: fixtures._fromCache || false,
+      lastUpdate: fixtures._lastUpdate,
       responseTime: fixtures._responseTime,
       timestamp: new Date().toISOString()
     });
@@ -83,7 +85,8 @@ router.get('/live', async (req, res) => {
     res.json({
       success: true,
       data: fixtures.response || [],
-      cached: fixtures._cached || false,
+      fromCache: fixtures._fromCache || false,
+      lastUpdate: fixtures._lastUpdate,
       responseTime: fixtures._responseTime,
       timestamp: new Date().toISOString()
     });

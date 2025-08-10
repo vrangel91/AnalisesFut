@@ -9,28 +9,39 @@ const predictionService = new PredictionService();
 // GET /api/predictions/today - Predições para jogos de hoje
 router.get('/today', async (req, res) => {
   try {
-    const cachedData = await cacheService.getCache('predictions', { type: 'today' });
+    const { refresh } = req.query;
+    const forceRefresh = refresh === 'true';
     
-    if (cachedData) {
-      console.log('📦 Retornando predições de hoje do cache');
-      return res.json({
-        success: true,
-        data: cachedData.data || [],
-        count: cachedData.data?.length || 0,
-        timestamp: cachedData.timestamp,
-        fromCache: true
-      });
+    if (!forceRefresh) {
+      console.log('🔍 Verificando cache para predictions/today...');
+      const cachedData = await cacheService.getCache('predictions', { type: 'today' });
+      console.log('🔍 Resultado do cache:', cachedData ? 'encontrado' : 'não encontrado');
+      
+      if (cachedData) {
+        console.log('📦 Retornando predições de hoje do cache');
+        return res.json({
+          success: true,
+          data: cachedData.data || [],
+          count: cachedData.data?.length || 0,
+          timestamp: cachedData.timestamp,
+          fromCache: true
+        });
+      } else {
+        console.log('❌ Cache miss para predictions/today');
+      }
     }
 
     console.log('🔄 Gerando predições de hoje (não encontradas no cache)');
     const predictions = await predictionService.getTodayPredictions();
     
     // Salvar no cache
+    console.log('💾 Salvando predições no cache...');
     await cacheService.setCache('predictions', { type: 'today' }, {
       data: predictions || [],
       count: predictions?.length || 0,
       timestamp: new Date().toISOString()
     });
+    console.log('✅ Predições salvas no cache');
     
     res.json({
       success: true,
@@ -52,17 +63,22 @@ router.get('/today', async (req, res) => {
 // GET /api/predictions/live - Predições para jogos ao vivo
 router.get('/live', async (req, res) => {
   try {
-    const cachedData = await cacheService.getCache('predictions', { type: 'live' });
+    const { refresh } = req.query;
+    const forceRefresh = refresh === 'true';
     
-    if (cachedData) {
-      console.log('📦 Retornando predições ao vivo do cache');
-      return res.json({
-        success: true,
-        data: cachedData.data || [],
-        count: cachedData.data?.length || 0,
-        timestamp: cachedData.timestamp,
-        fromCache: true
-      });
+    if (!forceRefresh) {
+      const cachedData = await cacheService.getCache('predictions', { type: 'live' });
+      
+      if (cachedData) {
+        console.log('📦 Retornando predições ao vivo do cache');
+        return res.json({
+          success: true,
+          data: cachedData.data || [],
+          count: cachedData.data?.length || 0,
+          timestamp: cachedData.timestamp,
+          fromCache: true
+        });
+      }
     }
 
     console.log('🔄 Gerando predições ao vivo (não encontradas no cache)');

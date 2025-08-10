@@ -15,12 +15,18 @@ const Dashboard = () => {
     totalPredictions: 0,
     highConfidence: 0
   });
+  const [cacheInfo, setCacheInfo] = useState({
+    fixtures: { fromCache: false, lastUpdate: null },
+    live: { fromCache: false, lastUpdate: null },
+    predictions: { fromCache: false, lastUpdate: null },
+    livePredictions: { fromCache: false, lastUpdate: null }
+  });
 
   useEffect(() => {
     loadDashboardData();
   }, []);
 
-  const loadDashboardData = async () => {
+  const loadDashboardData = async (forceRefresh = false) => {
     try {
       setLoading(true);
       setError(null);
@@ -28,10 +34,10 @@ const Dashboard = () => {
       console.log('🔄 Carregando dados do dashboard...');
       
       const [fixturesResponse, liveResponse, predictionsResponse, livePredictionsResponse] = await Promise.all([
-        axios.get('/api/fixtures/today'),
-        axios.get('/api/fixtures/live'),
-        axios.get('/api/predictions/today'),
-        axios.get('/api/predictions/live')
+        axios.get(`/api/fixtures/today${forceRefresh ? '?refresh=true' : ''}`),
+        axios.get(`/api/fixtures/live${forceRefresh ? '?refresh=true' : ''}`),
+        axios.get(`/api/predictions/today${forceRefresh ? '?refresh=true' : ''}`),
+        axios.get(`/api/predictions/live${forceRefresh ? '?refresh=true' : ''}`)
       ]);
 
       console.log('📊 Dados recebidos:', {
@@ -45,6 +51,26 @@ const Dashboard = () => {
       setLiveFixtures(liveResponse.data.data || []);
       setPredictions(predictionsResponse.data.data || []);
       setLivePredictions(livePredictionsResponse.data.data || []);
+
+      // Atualizar informações de cache
+      setCacheInfo({
+        fixtures: {
+          fromCache: fixturesResponse.data.fromCache || false,
+          lastUpdate: fixturesResponse.data.lastUpdate
+        },
+        live: {
+          fromCache: liveResponse.data.fromCache || false,
+          lastUpdate: liveResponse.data.lastUpdate
+        },
+        predictions: {
+          fromCache: predictionsResponse.data.fromCache || false,
+          lastUpdate: predictionsResponse.data.lastUpdate
+        },
+        livePredictions: {
+          fromCache: livePredictionsResponse.data.fromCache || false,
+          lastUpdate: livePredictionsResponse.data.lastUpdate
+        }
+      });
 
       // Calcular estatísticas
       const highConfidence = predictionsResponse.data.data?.filter(p => p.confidence === 'alta').length || 0;
@@ -428,12 +454,90 @@ const Dashboard = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            🎯 Dashboard Over/Under
-          </h1>
-          <p className="text-gray-600">
-            Análises especializadas em gols, escanteios, finalizações e cartões
-          </p>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                🎯 Dashboard Over/Under
+              </h1>
+              <p className="text-gray-600">
+                Análises especializadas em gols, escanteios, finalizações e cartões
+              </p>
+            </div>
+            <div className="flex items-center space-x-3">
+              {/* Indicadores de Cache */}
+              <div className="flex items-center space-x-2 text-sm">
+                {cacheInfo.fixtures.fromCache && (
+                  <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full flex items-center">
+                    📦 Cache
+                  </span>
+                )}
+                {cacheInfo.predictions.fromCache && (
+                  <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full flex items-center">
+                    📦 Cache
+                  </span>
+                )}
+              </div>
+              {/* Botão de Refresh */}
+              <button
+                onClick={() => loadDashboardData(true)}
+                disabled={loading}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 flex items-center space-x-2"
+              >
+                <FaEye className="text-sm" />
+                <span>Atualizar</span>
+              </button>
+            </div>
+          </div>
+          
+          {/* Informações de Cache */}
+          <div className="bg-gray-50 rounded-lg p-4 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div className="flex items-center space-x-2">
+                <span className="text-gray-600">Fixtures:</span>
+                <span className={cacheInfo.fixtures.fromCache ? 'text-blue-600' : 'text-gray-800'}>
+                  {cacheInfo.fixtures.fromCache ? '📦 Cache' : '🌐 API'}
+                </span>
+                {cacheInfo.fixtures.lastUpdate && (
+                  <span className="text-gray-500">
+                    ({new Date(cacheInfo.fixtures.lastUpdate).toLocaleTimeString('pt-BR')})
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="text-gray-600">Live:</span>
+                <span className={cacheInfo.live.fromCache ? 'text-blue-600' : 'text-gray-800'}>
+                  {cacheInfo.live.fromCache ? '📦 Cache' : '🌐 API'}
+                </span>
+                {cacheInfo.live.lastUpdate && (
+                  <span className="text-gray-500">
+                    ({new Date(cacheInfo.live.lastUpdate).toLocaleTimeString('pt-BR')})
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="text-gray-600">Predictions:</span>
+                <span className={cacheInfo.predictions.fromCache ? 'text-green-600' : 'text-gray-800'}>
+                  {cacheInfo.predictions.fromCache ? '📦 Cache' : '🌐 API'}
+                </span>
+                {cacheInfo.predictions.lastUpdate && (
+                  <span className="text-gray-500">
+                    ({new Date(cacheInfo.predictions.lastUpdate).toLocaleTimeString('pt-BR')})
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="text-gray-600">Live Pred:</span>
+                <span className={cacheInfo.livePredictions.fromCache ? 'text-green-600' : 'text-gray-800'}>
+                  {cacheInfo.livePredictions.fromCache ? '📦 Cache' : '🌐 API'}
+                </span>
+                {cacheInfo.livePredictions.lastUpdate && (
+                  <span className="text-gray-500">
+                    ({new Date(cacheInfo.livePredictions.lastUpdate).toLocaleTimeString('pt-BR')})
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Stats Cards */}

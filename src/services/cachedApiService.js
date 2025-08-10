@@ -20,6 +20,8 @@ class CachedApiService {
           return {
             ...cachedData,
             _cached: true,
+            _fromCache: true,
+            _lastUpdate: cachedData._lastUpdate || new Date().toISOString(),
             _responseTime: Date.now() - startTime
           };
         }
@@ -29,12 +31,20 @@ class CachedApiService {
       console.log(`🌐 Fazendo requisição para API: ${endpoint}`);
       const apiData = await this.apiService.makeRequest(endpoint, params);
       
+      // Adicionar timestamp de quando foi cacheado
+      const dataWithTimestamp = {
+        ...apiData,
+        _lastUpdate: new Date().toISOString()
+      };
+      
       // Salvar no cache
-      await this.cacheService.setCache(endpoint, params, apiData);
+      await this.cacheService.setCache(endpoint, params, dataWithTimestamp);
       
       return {
         ...apiData,
         _cached: false,
+        _fromCache: false,
+        _lastUpdate: new Date().toISOString(),
         _responseTime: Date.now() - startTime
       };
       
