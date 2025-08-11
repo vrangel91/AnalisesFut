@@ -31,11 +31,32 @@ class PredictionService {
       }
 
       console.log(`📅 Encontrados ${fixtures.response.length} jogos para hoje`);
+      
+      // Filtrar apenas jogos que ainda não terminaram
+      const activeFixtures = fixtures.response.filter(fixture => {
+        const status = fixture.fixture?.status?.short;
+        const isFinished = status === 'FT' || status === 'AET' || status === 'PEN' || status === 'HT';
+        
+        if (isFinished) {
+          console.log(`⏭️ Pular jogo finalizado: ${fixture.teams.home.name} vs ${fixture.teams.away.name} (status: ${status})`);
+          return false;
+        }
+        
+        return true;
+      });
+      
+      console.log(`📅 ${activeFixtures.length} jogos ativos (não finalizados) para hoje`);
+      
+      if (activeFixtures.length === 0) {
+        console.log('📅 Todos os jogos de hoje já terminaram');
+        return [];
+      }
+      
       const predictions = [];
       
-      for (const fixture of fixtures.response.slice(0, 10)) { // Limitar a 10 jogos
+      for (const fixture of activeFixtures.slice(0, 10)) { // Limitar a 10 jogos
         try {
-          console.log(`🔍 Analisando: ${fixture.teams.home.name} vs ${fixture.teams.away.name}`);
+          console.log(`🔍 Analisando: ${fixture.teams.home.name} vs ${fixture.teams.away.name} (status: ${fixture.fixture?.status?.short})`);
           
           const prediction = await this.getApiPredictions(fixture.fixture.id);
           if (prediction) {
@@ -317,6 +338,46 @@ class PredictionService {
       }
     }
     
+    // Prioridade 3: Over/Under escanteios - NOVA PRIORIDADE ALTA
+    if (h2hStats && h2hStats.averageCorners) {
+      const { averageCorners, totalMatches, cornerTrends } = h2hStats;
+      
+      if (totalMatches >= 3) {
+        if (averageCorners >= 8.5) {
+          return `Over 8.5 escanteios (H2H média: ${averageCorners.toFixed(1)} escanteios)`;
+        } else if (averageCorners >= 7.5) {
+          return `Over 7.5 escanteios (H2H média: ${averageCorners.toFixed(1)} escanteios)`;
+        } else if (averageCorners >= 6.5) {
+          return `Over 6.5 escanteios (H2H média: ${averageCorners.toFixed(1)} escanteios)`;
+        } else if (averageCorners >= 5.5) {
+          return `Over 5.5 escanteios (H2H média: ${averageCorners.toFixed(1)} escanteios)`;
+        } else if (averageCorners >= 4.5) {
+          return `Over 4.5 escanteios (H2H média: ${averageCorners.toFixed(1)} escanteios)`;
+        } else if (averageCorners <= 4.0) {
+          return `Under 4.5 escanteios (H2H média: ${averageCorners.toFixed(1)} escanteios)`;
+        } else if (averageCorners <= 5.0) {
+          return `Under 5.5 escanteios (H2H média: ${averageCorners.toFixed(1)} escanteios)`;
+        } else if (averageCorners <= 6.0) {
+          return `Under 6.5 escanteios (H2H média: ${averageCorners.toFixed(1)} escanteios)`;
+        }
+      }
+      
+      // Análise de padrões de distribuição
+      if (cornerTrends && totalMatches >= 3) {
+        const balancedRatio = cornerTrends.balanced / totalMatches;
+        const homeDominantRatio = cornerTrends.homeDominant / totalMatches;
+        const awayDominantRatio = cornerTrends.awayDominant / totalMatches;
+        
+        if (balancedRatio >= 0.6) {
+          return `Over 5.5 escanteios (H2H distribuição equilibrada: ${(balancedRatio * 100).toFixed(0)}%)`;
+        } else if (homeDominantRatio >= 0.5) {
+          return `Over 6.5 escanteios (H2H vantagem da casa: ${(homeDominantRatio * 100).toFixed(0)}%)`;
+        } else if (awayDominantRatio >= 0.5) {
+          return `Over 6.5 escanteios (H2H pressão do visitante: ${(awayDominantRatio * 100).toFixed(0)}%)`;
+        }
+      }
+    }
+    
     // Prioridade 4: Over/Under cartões
     if (h2hStats && h2hStats.averageCards) {
       const { averageCards, totalMatches } = h2hStats;
@@ -499,11 +560,38 @@ class PredictionService {
       }
 
       console.log(`🔥 Encontrados ${liveFixtures.response.length} jogos ao vivo`);
+      
+      // Filtrar apenas jogos que estão realmente ao vivo (não finalizados)
+      const trulyLiveFixtures = liveFixtures.response.filter(fixture => {
+        const status = fixture.fixture?.status?.short;
+        const isLive = status === '1H' || status === '2H' || status === 'HT' || status === 'ET' || status === 'P';
+        const isFinished = status === 'FT' || status === 'AET' || status === 'PEN';
+        
+        if (isFinished) {
+          console.log(`⏭️ Pular jogo finalizado: ${fixture.teams.home.name} vs ${fixture.teams.away.name} (status: ${status})`);
+          return false;
+        }
+        
+        if (!isLive) {
+          console.log(`⏭️ Pular jogo não ao vivo: ${fixture.teams.home.name} vs ${fixture.teams.away.name} (status: ${status})`);
+          return false;
+        }
+        
+        return true;
+      });
+      
+      console.log(`🔥 ${trulyLiveFixtures.length} jogos realmente ao vivo`);
+      
+      if (trulyLiveFixtures.length === 0) {
+        console.log('🔥 Nenhum jogo realmente ao vivo encontrado');
+        return [];
+      }
+      
       const predictions = [];
       
-      for (const fixture of liveFixtures.response) {
+      for (const fixture of trulyLiveFixtures) {
         try {
-          console.log(`🔍 Analisando ao vivo: ${fixture.teams.home.name} vs ${fixture.teams.away.name}`);
+          console.log(`🔍 Analisando ao vivo: ${fixture.teams.home.name} vs ${fixture.teams.away.name} (status: ${fixture.fixture?.status?.short})`);
           
           const prediction = await this.getApiPredictions(fixture.fixture.id);
           if (prediction) {

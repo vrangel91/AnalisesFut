@@ -21,6 +21,10 @@ const MyBets = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedBet, setSelectedBet] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [betToDelete, setBetToDelete] = useState(null);
+  const [deleteCountdown, setDeleteCountdown] = useState(0);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Estados para nova aposta
   const [newBet, setNewBet] = useState({
@@ -103,21 +107,60 @@ const MyBets = () => {
   };
 
   const deleteBet = async (betId) => {
-    if (window.confirm('Tem certeza que deseja deletar esta aposta?')) {
-      try {
-        const response = await fetch(`/api/bets/${betId}`, {
-          method: 'DELETE',
-        });
-        
-        const data = await response.json();
-        if (data.success) {
+    // Encontrar a aposta para mostrar os detalhes no modal
+    const bet = bets.find(b => b.id === betId);
+    setBetToDelete(bet);
+    setShowDeleteModal(true);
+    setDeleteCountdown(0);
+    setIsDeleting(false);
+  };
+
+  const confirmDelete = async () => {
+    if (!betToDelete || isDeleting) return;
+    
+    setIsDeleting(true);
+    
+    try {
+      const response = await fetch(`/api/bets/${betToDelete.id}`, {
+        method: 'DELETE',
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        // Simular um pequeno delay para feedback visual
+        setTimeout(() => {
           fetchBets();
           fetchStats();
-        }
-      } catch (error) {
-        console.error('Erro ao deletar aposta:', error);
+          setShowDeleteModal(false);
+          setBetToDelete(null);
+          setIsDeleting(false);
+        }, 500);
       }
+    } catch (error) {
+      console.error('Erro ao deletar aposta:', error);
+      setIsDeleting(false);
     }
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteModal(false);
+    setBetToDelete(null);
+    setDeleteCountdown(0);
+    setIsDeleting(false);
+  };
+
+  // Função para iniciar contador regressivo (opcional)
+  const startDeleteCountdown = () => {
+    setDeleteCountdown(3);
+    const interval = setInterval(() => {
+      setDeleteCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
   };
 
   const checkResults = async () => {
@@ -399,6 +442,8 @@ const MyBets = () => {
                   value={newBet.market_type}
                   onChange={(e) => setNewBet({...newBet, market_type: e.target.value})}
                 >
+                  <option value="Over Gols">Over/Under</option>
+                  <option value="Under Gols">Over/Under</option>
                   <option value="Over/Under">Over/Under</option>
                   <option value="Both Teams Score">Both Teams Score</option>
                   <option value="Match Winner">Match Winner</option>
@@ -463,48 +508,243 @@ const MyBets = () => {
         {/* Modal Detalhes da Aposta */}
         {selectedBet && (
           <div className="modal-overlay">
-            <div className="modal">
-              <h3>Detalhes da Aposta</h3>
-              <div className="form-group">
-                <strong>Jogo:</strong> {selectedBet.home_team} vs {selectedBet.away_team}
-              </div>
-              <div className="form-group">
-                <strong>Liga:</strong> {selectedBet.league_name}
-              </div>
-              <div className="form-group">
-                <strong>Mercado:</strong> {selectedBet.market_type}
-              </div>
-              <div className="form-group">
-                <strong>Predição:</strong> {selectedBet.prediction}
-              </div>
-              <div className="form-group">
-                <strong>Confiança:</strong> {selectedBet.confidence}
-              </div>
-              <div className="form-group">
-                <strong>Stake:</strong> R$ {selectedBet.stake}
-              </div>
-              <div className="form-group">
-                <strong>Odds:</strong> {selectedBet.odds}
-              </div>
-              <div className="form-group">
-                <strong>Status:</strong> {selectedBet.status}
-              </div>
-              {selectedBet.actual_result && (
-                <div className="form-group">
-                  <strong>Resultado:</strong> {selectedBet.actual_result}
+            <div className="modal bet-details-modal">
+              <div className="modal-header">
+                <div className="header-icon">
+                  <FaEye className="eye-icon" />
                 </div>
-              )}
-              {selectedBet.profit_loss !== null && (
-                <div className="form-group">
-                  <strong>P&L:</strong> R$ {selectedBet.profit_loss.toFixed(2)}
+                <h3>Detalhes da Aposta</h3>
+                <p className="subtitle">Informações completas da sua aposta</p>
+              </div>
+              
+              <div className="modal-body">
+                <div className="bet-details-grid">
+                  {/* Seção: Informações do Jogo */}
+                  <div className="detail-section">
+                    <div className="section-title">
+                      <FaTrophy className="section-icon" />
+                      Informações do Jogo
+                    </div>
+                    
+                    <div className="detail-row">
+                      <span className="detail-label">Times:</span>
+                      <span className="detail-value highlight">
+                        {selectedBet.home_team} vs {selectedBet.away_team}
+                      </span>
+                    </div>
+                    
+                    <div className="detail-row">
+                      <span className="detail-label">Liga:</span>
+                      <span className="detail-value highlight">{selectedBet.league_name}</span>
+                    </div>
+                    
+                    <div className="detail-row">
+                      <span className="detail-label">Data:</span>
+                      <span className="detail-value">{selectedBet.match_date}</span>
+                    </div>
+                    
+                    <div className="detail-row">
+                      <span className="detail-label">Hora:</span>
+                      <span className="detail-value">{selectedBet.match_time}</span>
+                    </div>
+                  </div>
+
+                  {/* Seção: Detalhes da Aposta */}
+                  <div className="detail-section">
+                    <div className="section-title">
+                      <FaChartLine className="section-icon" />
+                      Detalhes da Aposta
+                    </div>
+                    
+                    <div className="detail-row">
+                      <span className="detail-label">Mercado:</span>
+                      <span className="detail-value">
+                        <span className="market-badge">{selectedBet.market_type}</span>
+                      </span>
+                    </div>
+                    
+                    <div className="detail-row">
+                      <span className="detail-label">Predição:</span>
+                      <span className="detail-value">
+                        <span className="prediction-badge">{selectedBet.prediction}</span>
+                      </span>
+                    </div>
+                    
+                    <div className="detail-row">
+                      <span className="detail-label">Confiança:</span>
+                      <span className="detail-value">
+                        <span className={`confidence-badge ${selectedBet.confidence}`}>
+                          {selectedBet.confidence}
+                        </span>
+                      </span>
+                    </div>
+                    
+                    <div className="detail-row">
+                      <span className="detail-label">Status:</span>
+                      <span className="detail-value">
+                        <span className={`status-badge ${selectedBet.status}`}>
+                          {selectedBet.status === 'green' ? 'Green' : selectedBet.status === 'loss' ? 'Loss' : 'Pendente'}
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Seção: Informações Financeiras */}
+                  <div className="detail-section financial-section">
+                    <div className="section-title">
+                      <FaDollarSign className="section-icon" />
+                      Informações Financeiras
+                    </div>
+                    
+                    <div className="detail-row">
+                      <span className="detail-label">Stake:</span>
+                      <span className="detail-value stake-amount">R$ {selectedBet.stake}</span>
+                    </div>
+                    
+                    <div className="detail-row">
+                      <span className="detail-label">Odds:</span>
+                      <span className="detail-value odds-value">{selectedBet.odds}</span>
+                    </div>
+                    
+                    {selectedBet.profit_loss !== null && (
+                      <div className="detail-row">
+                        <span className="detail-label">P&L:</span>
+                        <span className={`detail-value profit-loss ${selectedBet.profit_loss >= 0 ? 'positive' : 'negative'}`}>
+                          R$ {selectedBet.profit_loss.toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Seção: Resultado (se disponível) */}
+                  {selectedBet.actual_result && (
+                    <div className="detail-section result-section">
+                      <div className="section-title">
+                        <FaCheckCircle className="section-icon" />
+                        Resultado
+                      </div>
+                      
+                      <div className="detail-row">
+                        <span className="detail-label">Resultado Real:</span>
+                        <span className="detail-value highlight">{selectedBet.actual_result}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
+              
               <div className="modal-actions">
                 <button
                   onClick={() => setSelectedBet(null)}
-                  className="btn btn-secondary"
+                  className="btn btn-secondary close-btn"
                 >
                   Fechar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Confirmar Deleção */}
+        {showDeleteModal && betToDelete && (
+          <div className="modal-overlay">
+            <div className="modal delete-confirmation-modal">
+              <div className="modal-header">
+                <div className="header-icon">
+                  <FaTrash className="trash-icon" />
+                </div>
+                <h3>Confirmar Exclusão</h3>
+                <p className="warning-text">Esta ação não pode ser desfeita</p>
+              </div>
+              
+              <div className="modal-body">
+                <div className="bet-summary">
+                  <div className="summary-header">
+                    <span className="summary-label">Resumo da Aposta:</span>
+                  </div>
+                  
+                  <div className="bet-details">
+                    <div className="detail-row">
+                      <span className="detail-label">Jogo:</span>
+                      <span className="detail-value">
+                        <strong>{betToDelete.home_team}</strong> vs <strong>{betToDelete.away_team}</strong>
+                      </span>
+                    </div>
+                    
+                    <div className="detail-row">
+                      <span className="detail-label">Liga:</span>
+                      <span className="detail-value">{betToDelete.league_name}</span>
+                    </div>
+                    
+                    <div className="detail-row">
+                      <span className="detail-label">Mercado:</span>
+                      <span className="detail-value">
+                        <span className="market-badge">{betToDelete.market_type}</span>
+                      </span>
+                    </div>
+                    
+                    <div className="detail-row">
+                      <span className="detail-label">Predição:</span>
+                      <span className="detail-value">
+                        <span className="prediction-badge">{betToDelete.prediction}</span>
+                      </span>
+                    </div>
+                    
+                    <div className="detail-row">
+                      <span className="detail-label">Stake:</span>
+                      <span className="detail-value">
+                        <span className="stake-amount">R$ {betToDelete.stake}</span>
+                      </span>
+                    </div>
+                    
+                    <div className="detail-row">
+                      <span className="detail-label">Status:</span>
+                      <span className="detail-value">
+                        <span className={`status-badge ${betToDelete.status}`}>
+                          {betToDelete.status === 'green' ? 'Green' : betToDelete.status === 'loss' ? 'Loss' : 'Pendente'}
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="confirmation-message">
+                  <div className="warning-box">
+                    <FaTimesCircle className="warning-icon" />
+                    <div className="warning-content">
+                      <strong>Atenção!</strong>
+                      <p>Esta aposta será permanentemente removida do sistema. 
+                      Se ela tiver resultado pendente, você perderá o histórico.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="modal-actions">
+                <button
+                  onClick={cancelDelete}
+                  className="btn btn-secondary cancel-btn"
+                  disabled={isDeleting}
+                >
+                  <FaEye />
+                  {isDeleting ? 'Cancelando...' : 'Cancelar'}
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="btn btn-danger confirm-btn"
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? (
+                    <>
+                      <div className="spinner-small"></div>
+                      Deletando...
+                    </>
+                  ) : (
+                    <>
+                      <FaTrash />
+                      Sim, Deletar!
+                    </>
+                  )}
                 </button>
               </div>
             </div>

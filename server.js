@@ -20,10 +20,13 @@ const teamsRoutes = require('./src/routes/teams');
 const h2hRoutes = require('./src/routes/h2h');
 const cacheRoutes = require('./src/routes/cache');
 const betsRoutes = require('./src/routes/bets');
+const ngrokRoutes = require('./src/routes/ngrok');
+const h2hCornersRoutes = require('./src/routes/h2hCorners');
 
 // Importar serviços
 const cacheService = require('./src/services/cacheService');
 const cachedApiService = require('./src/services/cachedApiService');
+const ngrokService = require('./src/services/ngrokService');
 
 const app = express();
 const server = http.createServer(app);
@@ -90,6 +93,8 @@ app.use('/api/teams', teamsRoutes);
 app.use('/api/h2h', h2hRoutes);
 app.use('/api/cache', cacheRoutes);
 app.use('/api/bets', betsRoutes);
+app.use('/api/ngrok', ngrokRoutes);
+app.use('/api/h2h-corners', h2hCornersRoutes);
 
 // Rota principal
 app.get('/api/health', (req, res) => {
@@ -176,6 +181,18 @@ server.listen(PORT, async () => {
   // Inicializar tarefas agendadas
   setupCronJobs();
   
+  // Iniciar ngrok em desenvolvimento
+  if (process.env.NODE_ENV === 'development') {
+    try {
+      console.log('🚀 Iniciando ngrok para desenvolvimento...');
+      const tunnelUrl = await ngrokService.startTunnel();
+      console.log(`✅ Ngrok iniciado: ${tunnelUrl}`);
+    } catch (error) {
+      console.error('❌ Erro ao iniciar ngrok:', error.message);
+      console.log('⚠️  Servidor continuará funcionando sem ngrok');
+    }
+  }
+  
   // Pré-carregar dados importantes na inicialização
   try {
     console.log('🚀 Inicializando pré-carregamento...');
@@ -187,8 +204,18 @@ server.listen(PORT, async () => {
 });
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   console.log('🛑 Recebido SIGTERM, fechando servidor...');
+  
+  // Parar ngrok se estiver rodando
+  if (process.env.NODE_ENV === 'development') {
+    try {
+      await ngrokService.stopTunnel();
+    } catch (error) {
+      console.error('❌ Erro ao parar ngrok:', error.message);
+    }
+  }
+  
   cacheService.close();
   server.close(() => {
     console.log('✅ Servidor fechado');
@@ -196,8 +223,18 @@ process.on('SIGTERM', () => {
   });
 });
 
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
   console.log('🛑 Recebido SIGINT, fechando servidor...');
+  
+  // Parar ngrok se estiver rodando
+  if (process.env.NODE_ENV === 'development') {
+    try {
+      await ngrokService.stopTunnel();
+    } catch (error) {
+      console.error('❌ Erro ao parar ngrok:', error.message);
+    }
+  }
+  
   cacheService.close();
   server.close(() => {
     console.log('✅ Servidor fechado');

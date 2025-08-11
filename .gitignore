@@ -69,3 +69,7 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# Ngrok
+.ngrok2/
+ngrok.yml

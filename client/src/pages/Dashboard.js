@@ -6,8 +6,17 @@ import './Dashboard.scss';
 const Dashboard = () => {
   const [todayFixtures, setTodayFixtures] = useState([]);
   const [liveFixtures, setLiveFixtures] = useState([]);
+  const [upcomingFixtures, setUpcomingFixtures] = useState([]);
+  const [finishedFixtures, setFinishedFixtures] = useState([]);
   const [predictions, setPredictions] = useState([]);
   const [livePredictions, setLivePredictions] = useState([]);
+  
+  // Estados para armazenar as predições originais (primeira vez)
+  const [originalPredictions, setOriginalPredictions] = useState([]);
+  const [originalLivePredictions, setOriginalLivePredictions] = useState([]);
+  const [hasOriginalPredictions, setHasOriginalPredictions] = useState(false);
+  const [hasOriginalLivePredictions, setHasOriginalLivePredictions] = useState(false);
+  
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [stats, setStats] = useState({
@@ -25,6 +34,14 @@ const Dashboard = () => {
 
   useEffect(() => {
     loadDashboardData();
+    
+    // Cleanup: limpar predições originais quando componente for desmontado
+    return () => {
+      setOriginalPredictions([]);
+      setOriginalLivePredictions([]);
+      setHasOriginalPredictions(false);
+      setHasOriginalLivePredictions(false);
+    };
   }, []);
 
   const loadDashboardData = async (forceRefresh = false) => {
@@ -33,6 +50,7 @@ const Dashboard = () => {
       setError(null);
       
       console.log('🔄 Carregando dados do dashboard...');
+      console.log('📋 Comportamento: Predições originais são preservadas após primeira carga');
       
       const [fixturesResponse, liveResponse, predictionsResponse, livePredictionsResponse] = await Promise.all([
         axios.get(`/api/fixtures/today${forceRefresh ? '?refresh=true' : ''}`),
@@ -48,10 +66,79 @@ const Dashboard = () => {
         livePredictions: livePredictionsResponse.data.data?.length || 0
       });
 
-      setTodayFixtures(fixturesResponse.data.data || []);
-      setLiveFixtures(liveResponse.data.data || []);
-      setPredictions(predictionsResponse.data.data || []);
-      setLivePredictions(livePredictionsResponse.data.data || []);
+      // Sempre atualizar fixtures (não são predições)
+      const todayFixturesData = fixturesResponse.data.data?.fixtures || fixturesResponse.data.data || [];
+      const liveFixturesData = liveResponse.data.data?.fixtures || liveResponse.data.data || [];
+      
+      // Separar jogos por status
+      const upcoming = [];
+      const live = [];
+      const finished = [];
+      
+      todayFixturesData.forEach(fixture => {
+        const status = fixture.status?.short || 'NS';
+        
+        if (['NS', 'TBD', 'POSTP', 'CANC', 'CANCELLED'].includes(status)) {
+          // Jogos que ainda não começaram (próximos jogos)
+          upcoming.push(fixture);
+        } else if (['1H', '2H', 'HT', 'ET', 'P', 'BT'].includes(status)) {
+          // Jogos ao vivo
+          live.push(fixture);
+        } else if (['FT', 'AET', 'PEN', 'AWD', 'WO', 'PST'].includes(status)) {
+          // Jogos finalizados
+          finished.push(fixture);
+        }
+      });
+      
+      // Adicionar jogos ao vivo da API específica
+      liveFixturesData.forEach(fixture => {
+        if (!live.find(f => f.id === fixture.id)) {
+          live.push(fixture);
+        }
+      });
+      
+      setTodayFixtures(todayFixturesData); // Manter todos para compatibilidade
+      setLiveFixtures(live);
+      setUpcomingFixtures(upcoming);
+      setFinishedFixtures(finished);
+      
+      // Lógica para predições: manter as originais se já existirem
+      const newPredictions = Array.isArray(predictionsResponse.data.data) ? predictionsResponse.data.data : [];
+      const newLivePredictions = Array.isArray(livePredictionsResponse.data.data) ? livePredictionsResponse.data.data : [];
+      
+      // Para predições normais
+      if (!hasOriginalPredictions && newPredictions.length > 0) {
+        // Primeira vez: armazenar as predições originais
+        setOriginalPredictions(newPredictions);
+        setHasOriginalPredictions(true);
+        setPredictions(newPredictions);
+        console.log('🎯 Primeira vez: armazenando predições originais:', newPredictions.length);
+      } else if (hasOriginalPredictions) {
+        // Manter as predições originais
+        setPredictions(originalPredictions);
+        console.log('🔄 Mantendo predições originais:', originalPredictions.length);
+      } else {
+        // Sem predições originais, usar as novas
+        setPredictions(newPredictions);
+        console.log('📊 Usando novas predições:', newPredictions.length);
+      }
+      
+      // Para predições ao vivo
+      if (!hasOriginalLivePredictions && newLivePredictions.length > 0) {
+        // Primeira vez: armazenar as predições ao vivo originais
+        setOriginalLivePredictions(newLivePredictions);
+        setHasOriginalLivePredictions(true);
+        setLivePredictions(newLivePredictions);
+        console.log('🎯 Primeira vez: armazenando predições ao vivo originais:', newLivePredictions.length);
+      } else if (hasOriginalLivePredictions) {
+        // Manter as predições ao vivo originais
+        setLivePredictions(originalLivePredictions);
+        console.log('🔄 Mantendo predições ao vivo originais:', originalLivePredictions.length);
+      } else {
+        // Sem predições ao vivo originais, usar as novas
+        setLivePredictions(newLivePredictions);
+        console.log('📊 Usando novas predições ao vivo:', newLivePredictions.length);
+      }
 
       // Atualizar informações de cache
       setCacheInfo({
@@ -73,12 +160,15 @@ const Dashboard = () => {
         }
       });
 
-      // Calcular estatísticas
-      const highConfidence = predictionsResponse.data.data?.filter(p => p.confidence === 'alta').length || 0;
+      // Calcular estatísticas usando as predições corretas (originais ou novas)
+      const currentPredictions = hasOriginalPredictions ? originalPredictions : newPredictions;
+      const highConfidence = currentPredictions.filter(p => p.confidence === 'alta').length || 0;
       setStats({
-        totalFixtures: fixturesResponse.data.data?.length || 0,
-        liveFixtures: liveResponse.data.data?.length || 0,
-        totalPredictions: predictionsResponse.data.data?.length || 0,
+        totalFixtures: todayFixturesData.length || 0,
+        liveFixtures: live.length || 0,
+        upcomingFixtures: upcoming.length || 0,
+        finishedFixtures: finished.length || 0,
+        totalPredictions: currentPredictions.length || 0,
         highConfidence
       });
 
@@ -285,7 +375,7 @@ const Dashboard = () => {
       }
 
       return (
-        <div key={fixture.fixture.id} className="fixture-card">
+        <div key={fixture.fixture?.id || fixture.id} className="fixture-card">
           <div className="card-header">
             <div className="fixture-info">
               <div className="league">
@@ -333,14 +423,16 @@ const Dashboard = () => {
 
   const renderFixtureCard = (fixture, isLive = false) => {
     try {
-      if (!fixture || !fixture.teams || !fixture.league || !fixture.fixture) {
+      if (!fixture || !fixture.teams || !fixture.league) {
         return null;
       }
 
-      const { teams, league, fixture: fixtureData } = fixture;
+      const { teams, league } = fixture;
+      // Usar fixture diretamente se não houver fixture.fixture
+      const fixtureData = fixture.fixture || fixture;
 
       return (
-        <div key={fixture.fixture.id} className="fixture-card">
+        <div key={fixture.id || fixture.fixture?.id} className="fixture-card">
           <div className="card-header">
             <div className="fixture-info">
               <div className="league">
@@ -371,13 +463,32 @@ const Dashboard = () => {
             </div>
           </div>
 
+          {/* Placar */}
           {fixture.goals && (
-            <div className="score">
+            <div className="score-section">
               <div className="score-display">
-                {fixture.goals.home} - {fixture.goals.away}
+                <span className="home-score">{fixture.goals.home}</span>
+                <span className="score-separator">-</span>
+                <span className="away-score">{fixture.goals.away}</span>
               </div>
             </div>
           )}
+
+          {/* Botão de Detalhes */}
+          <div className="card-actions">
+            <button
+              onClick={() => {
+                // Aqui você pode adicionar lógica para navegar para detalhes do jogo
+                console.log('Ver detalhes do jogo:', fixture.id || fixture.fixture?.id);
+                // Exemplo: window.open(`/predictions?fixture=${fixture.id || fixture.fixture?.id}`, '_blank');
+              }}
+              className="details-btn"
+              title="Ver estatísticas e análises detalhadas"
+            >
+              <FaEye />
+              <span>Detalhes</span>
+            </button>
+          </div>
         </div>
       );
     } catch (error) {
@@ -423,11 +534,11 @@ const Dashboard = () => {
         <div className="header">
           <div className="header-content">
             <div className="title-section">
-              <h1>🎯 Dashboard Over/Under</h1>
-              <p>Análises especializadas em gols, escanteios, finalizações e cartões</p>
+              <h1>📅 Dashboard de Jogos</h1>
+              <p>Visualize todos os jogos do dia com estatísticas ao vivo</p>
             </div>
             <div className="header-actions">
-              {/* Indicadores de Cache */}
+              {/* Indicadores de Cache e Predições Originais */}
               <div className="cache-indicators">
                 {cacheInfo.fixtures.fromCache && (
                   <span className="cache-badge fixtures">
@@ -439,20 +550,50 @@ const Dashboard = () => {
                     📦 Cache
                   </span>
                 )}
+                {hasOriginalPredictions && (
+                  <span className="original-badge predictions">
+                    🎯 Originais
+                  </span>
+                )}
+                {hasOriginalLivePredictions && (
+                  <span className="original-badge live">
+                    🔥 Live Originais
+                  </span>
+                )}
               </div>
-              {/* Botão de Refresh */}
-              <button
-                onClick={() => loadDashboardData(true)}
-                disabled={loading}
-                className="refresh-btn"
-              >
-                <FaEye />
-                <span>Atualizar</span>
-              </button>
+              {/* Botões de Ação */}
+              <div className="action-buttons">
+                <button
+                  onClick={() => loadDashboardData(true)}
+                  disabled={loading}
+                  className="refresh-btn"
+                >
+                  <FaEye />
+                  <span>Atualizar</span>
+                </button>
+                
+                {(hasOriginalPredictions || hasOriginalLivePredictions) && (
+                  <button
+                    onClick={() => {
+                      setHasOriginalPredictions(false);
+                      setHasOriginalLivePredictions(false);
+                      setOriginalPredictions([]);
+                      setOriginalLivePredictions([]);
+                      // Recarregar dados para usar as novas predições
+                      loadDashboardData(true);
+                    }}
+                    className="reset-originals-btn"
+                    title="Resetar predições originais e usar novas"
+                  >
+                    <FaDice />
+                    <span>Resetar Originais</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
           
-          {/* Informações de Cache */}
+          {/* Informações de Cache e Predições Originais */}
           <div className="cache-info">
             <div className="cache-grid">
               <div className="cache-item">
@@ -482,6 +623,11 @@ const Dashboard = () => {
                 <span className={`status ${cacheInfo.predictions.fromCache ? 'cache' : 'api'}`}>
                   {cacheInfo.predictions.fromCache ? '📦 Cache' : '🌐 API'}
                 </span>
+                {hasOriginalPredictions && (
+                  <span className="original-indicator">
+                    🎯 Originais ({originalPredictions.length})
+                  </span>
+                )}
                 {cacheInfo.predictions.lastUpdate && (
                   <span className="timestamp">
                     ({new Date(cacheInfo.predictions.lastUpdate).toLocaleTimeString('pt-BR')})
@@ -493,6 +639,11 @@ const Dashboard = () => {
                 <span className={`status ${cacheInfo.livePredictions.fromCache ? 'cache' : 'api'}`}>
                   {cacheInfo.livePredictions.fromCache ? '📦 Cache' : '🌐 API'}
                 </span>
+                {hasOriginalLivePredictions && (
+                  <span className="original-indicator">
+                    🔥 Originais ({originalLivePredictions.length})
+                  </span>
+                )}
                 {cacheInfo.livePredictions.lastUpdate && (
                   <span className="timestamp">
                     ({new Date(cacheInfo.livePredictions.lastUpdate).toLocaleTimeString('pt-BR')})
@@ -500,6 +651,28 @@ const Dashboard = () => {
                 )}
               </div>
             </div>
+            
+            {/* Informação sobre predições originais */}
+            {(hasOriginalPredictions || hasOriginalLivePredictions) && (
+              <div className="originals-info">
+                <div className="originals-header">
+                  <span className="icon">🎯</span>
+                  <span>Predições Originais Preservadas</span>
+                </div>
+                <div className="originals-details">
+                  {hasOriginalPredictions && (
+                    <span className="detail-item">
+                      Predições: {originalPredictions.length} (primeira carga)
+                    </span>
+                  )}
+                  {hasOriginalLivePredictions && (
+                    <span className="detail-item">
+                      Live: {originalLivePredictions.length} (primeira carga)
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -532,11 +705,11 @@ const Dashboard = () => {
           <div className="stat-card">
             <div className="stat-content">
               <div className="icon-wrapper green">
-                <FaDice />
+                <FaCalendar />
               </div>
               <div className="stat-info">
-                <h3>Análises Over/Under</h3>
-                <div className="value">{stats.totalPredictions}</div>
+                <h3>Próximos Jogos</h3>
+                <div className="value">{stats.upcomingFixtures}</div>
               </div>
             </div>
           </div>
@@ -547,8 +720,8 @@ const Dashboard = () => {
                 <FaEye />
               </div>
               <div className="stat-info">
-                <h3>Alta Confiança</h3>
-                <div className="value">{stats.highConfidence}</div>
+                <h3>Jogos Finalizados</h3>
+                <div className="value">{stats.finishedFixtures}</div>
               </div>
             </div>
           </div>
@@ -566,91 +739,71 @@ const Dashboard = () => {
               <span className="count">{liveFixtures.length} jogos</span>
             </div>
             
-            {liveFixtures.length === 0 ? (
+            {(!liveFixtures || liveFixtures.length === 0) ? (
               <div className="empty-state">
                 <FaClock className="icon" />
                 <p>Nenhum jogo ao vivo no momento</p>
               </div>
             ) : (
               <div className="items-grid">
-                {liveFixtures.slice(0, 5).map(fixture => 
+                {(liveFixtures || []).map(fixture => 
                   renderFixtureCard(fixture, true)
                 ).filter(Boolean)}
               </div>
             )}
           </div>
 
-          {/* Live Over/Under Analysis */}
-          <div className="section-card">
-            <div className="section-header">
-              <h2>
-                <FaChartLine className="icon analysis" />
-                Análises Over/Under ao Vivo
-              </h2>
-              <span className="count">{livePredictions.length} análises</span>
-            </div>
-            
-            {livePredictions.length === 0 ? (
-              <div className="empty-state">
-                <FaChartLine className="icon" />
-                <p>Nenhuma análise over/under ao vivo disponível</p>
-              </div>
-            ) : (
-              <div className="items-grid">
-                {livePredictions.slice(0, 5).map(prediction => 
-                  renderOverUnderCard(prediction, true)
-                ).filter(Boolean)}
-              </div>
-            )}
-          </div>
 
-          {/* Today's Fixtures */}
+
+          {/* Upcoming Fixtures */}
           <div className="section-card">
             <div className="section-header">
               <h2>
                 <FaCalendar className="icon calendar" />
-                Jogos de Hoje
+                Próximos Jogos
               </h2>
-              <span className="count">{todayFixtures.length} jogos</span>
+              <span className="count">{upcomingFixtures.length} jogos</span>
             </div>
             
-            {todayFixtures.length === 0 ? (
+            {(!upcomingFixtures || upcomingFixtures.length === 0) ? (
               <div className="empty-state">
                 <FaCalendar className="icon" />
-                <p>Nenhum jogo programado para hoje</p>
+                <p>Nenhum próximo jogo programado</p>
               </div>
             ) : (
               <div className="items-grid">
-                {todayFixtures.slice(0, 5).map(fixture => 
-                  renderFixtureCard(fixture)
+                {(upcomingFixtures || []).map(fixture => 
+                  renderFixtureCard(fixture, false)
                 ).filter(Boolean)}
               </div>
             )}
           </div>
 
-          {/* Today's Over/Under Analysis */}
+          {/* Finished Fixtures */}
           <div className="section-card">
             <div className="section-header">
               <h2>
-                <FaDice className="icon dice" />
-                Análises Over/Under de Hoje
+                <FaFlag className="icon finished" />
+                Jogos Finalizados
               </h2>
-              <span className="count">{predictions.length} análises</span>
+              <span className="count">{finishedFixtures.length} jogos</span>
             </div>
             
-            {predictions.length === 0 ? (
+            {(!finishedFixtures || finishedFixtures.length === 0) ? (
               <div className="empty-state">
-                <FaDice className="icon" />
-                <p>Nenhuma análise over/under disponível para hoje</p>
+                <FaFlag className="icon" />
+                <p>Nenhum jogo finalizado hoje</p>
               </div>
             ) : (
               <div className="items-grid">
-                {predictions.slice(0, 5).map(prediction => 
-                  renderOverUnderCard(prediction)
+                {(finishedFixtures || []).map(fixture => 
+                  renderFixtureCard(fixture, false)
                 ).filter(Boolean)}
               </div>
             )}
           </div>
+
+
         </div>
 
         {/* Refresh Button */}

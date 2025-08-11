@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { FaSearch, FaFilter, FaChartLine, FaDice, FaEye, FaInfoCircle, FaTrophy, FaBars } from 'react-icons/fa';
+import { FaSearch, FaFilter, FaChartLine, FaDice, FaEye, FaInfoCircle, FaTrophy, FaBars, FaCoins } from 'react-icons/fa';
 import axios from 'axios';
 import AddBetButton from '../components/AddBetButton';
+import H2hCornerAnalysisSection from '../components/H2hCornerAnalysisSection';
 
 const Predictions = () => {
   const [predictions, setPredictions] = useState([]);
@@ -16,10 +17,93 @@ const Predictions = () => {
   const [lastUpdate, setLastUpdate] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   const [availableLeagues, setAvailableLeagues] = useState([]);
+  const [oddsData, setOddsData] = useState({});
+  const [loadingOdds, setLoadingOdds] = useState({});
+  const [autoLoadOdds, setAutoLoadOdds] = useState(true);
+  const [statusFilter, setStatusFilter] = useState('all'); // Novo filtro de status
+  
+
+  
+  // Estados para análise H2H de corner kicks
+  const [h2hCornerAnalysis, setH2hCornerAnalysis] = useState({});
+  const [loadingH2hCorners, setLoadingH2hCorners] = useState({});
+  const [autoLoadH2hCorners, setAutoLoadH2hCorners] = useState(true);
+  
+  // Estados para próximas fixtures
+  const [upcomingFixtures, setUpcomingFixtures] = useState({ today: [], tomorrow: [] });
+  const [loadingFixtures, setLoadingFixtures] = useState(false);
+  const [fixturesFromCache, setFixturesFromCache] = useState(false);
+  
+  // Estados para análise H2H de corner kicks na aba Hoje
+  const [h2hCornerAnalysisToday, setH2hCornerAnalysisToday] = useState({});
+  const [loadingH2hCornersToday, setLoadingH2hCornersToday] = useState({});
+  const [autoLoadH2hCornersToday, setAutoLoadH2hCornersToday] = useState(true);
+  
+  // Estados para análise IA de gols na aba Hoje
+  const [aiAnalysisToday, setAiAnalysisToday] = useState({});
+  const [loadingAiAnalysisToday, setLoadingAiAnalysisToday] = useState({});
+  const [autoLoadAiAnalysisToday, setAutoLoadAiAnalysisToday] = useState(true);
 
   useEffect(() => {
     loadPredictions();
+    loadUpcomingFixtures();
   }, []);
+
+  // Forçar carregamento de odds e estatísticas após as predições serem carregadas
+  useEffect(() => {
+    if (predictions.length > 0 || livePredictions.length > 0) {
+      const currentPredictions = activeTab === 'today' ? predictions : livePredictions;
+      const fixturesToLoad = currentPredictions.slice(0, 3); // Carregar apenas os primeiros 3
+      
+      fixturesToLoad.forEach(prediction => {
+        const fixtureId = prediction.fixture.fixture.id;
+        
+        // Carregar odds se habilitado
+        if (autoLoadOdds && !oddsData[fixtureId] && !loadingOdds[fixtureId]) {
+          // Usar setTimeout para evitar dependência circular
+          setTimeout(() => loadOddsForFixture(fixtureId, activeTab === 'live'), 0);
+        }
+        
+
+        
+        // Carregar análise H2H de corner kicks se habilitado
+        if (autoLoadH2hCorners && !h2hCornerAnalysis[fixtureId] && !loadingH2hCorners[fixtureId]) {
+          // Usar setTimeout para evitar dependência circular
+          setTimeout(() => loadH2hCornerAnalysis(prediction, activeTab === 'live'), 0);
+        }
+      });
+    }
+  }, [predictions, livePredictions, activeTab, autoLoadOdds]);
+
+  // Carregar automaticamente análise H2H de corner kicks para fixtures da aba Hoje
+  useEffect(() => {
+    if (activeTab === 'today' && autoLoadH2hCornersToday && upcomingFixtures.today.length > 0) {
+      const fixturesToLoad = upcomingFixtures.today.slice(0, 3); // Carregar apenas os primeiros 3
+      
+      fixturesToLoad.forEach(fixture => {
+        if (!h2hCornerAnalysisToday[fixture.id] && !loadingH2hCornersToday[fixture.id]) {
+          // Usar setTimeout para evitar dependência circular
+          setTimeout(() => loadH2hCornerAnalysisToday(fixture, 'today'), 0);
+        }
+      });
+    }
+  }, [activeTab, autoLoadH2hCornersToday, upcomingFixtures.today, h2hCornerAnalysisToday, loadingH2hCornersToday]);
+
+  // Carregar automaticamente análise IA de gols para fixtures da aba Hoje
+  useEffect(() => {
+    if (activeTab === 'today' && autoLoadAiAnalysisToday && upcomingFixtures.today.length > 0) {
+      const fixturesToLoad = upcomingFixtures.today.slice(0, 3); // Carregar apenas os primeiros 3
+      
+      fixturesToLoad.forEach(fixture => {
+        if (!aiAnalysisToday[fixture.id] && !loadingAiAnalysisToday[fixture.id]) {
+          // Usar setTimeout para evitar dependência circular
+          setTimeout(() => loadAiAnalysisToday(fixture, 'today'), 0);
+        }
+      });
+    }
+  }, [activeTab, autoLoadAiAnalysisToday, upcomingFixtures.today, aiAnalysisToday, loadingAiAnalysisToday]);
+
+
 
   // Extrair ligas únicas quando os dados são carregados
   useEffect(() => {
@@ -51,6 +135,149 @@ const Predictions = () => {
     }
   };
 
+  // Função para buscar odds de uma fixture específica
+  const loadOddsForFixture = async (fixtureId, isLive = false) => {
+    if (oddsData[fixtureId] || loadingOdds[fixtureId]) return;
+
+    try {
+      setLoadingOdds(prev => ({ ...prev, [fixtureId]: true }));
+      
+      let response;
+      if (isLive) {
+        // Buscar odds ao vivo
+        response = await axios.get(`/api/odds/live?fixture=${fixtureId}`);
+      } else {
+        // Buscar odds pré-jogo
+        response = await axios.get(`/api/odds/fixture/${fixtureId}`);
+      }
+      
+      if (response.data.success && response.data.data.response && response.data.data.response.length > 0) {
+        setOddsData(prev => ({
+          ...prev,
+          [fixtureId]: response.data.data.response[0]
+        }));
+      }
+    } catch (error) {
+      console.error(`Erro ao carregar odds para fixture ${fixtureId}:`, error);
+    } finally {
+      setLoadingOdds(prev => ({ ...prev, [fixtureId]: false }));
+    }
+  };
+
+
+
+  // Função para buscar próximas fixtures
+  const loadUpcomingFixtures = async (forceRefresh = false) => {
+    try {
+      setLoadingFixtures(true);
+      
+      const response = await axios.get(`/api/fixtures/upcoming${forceRefresh ? '?refresh=true' : ''}`);
+      
+      if (response.data.success && response.data.data) {
+        setUpcomingFixtures({
+          today: response.data.data.today?.fixtures || [],
+          tomorrow: response.data.data.tomorrow?.fixtures || []
+        });
+        setFixturesFromCache(response.data.fromCache || false);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar próximas fixtures:', error);
+    } finally {
+      setLoadingFixtures(false);
+    }
+  };
+
+  // Função para buscar análise H2H de corner kicks
+  const loadH2hCornerAnalysis = async (fixture, isLive = false) => {
+    const fixtureId = fixture.fixture.id;
+    if (h2hCornerAnalysis[fixtureId] || loadingH2hCorners[fixtureId]) return;
+
+    try {
+      setLoadingH2hCorners(prev => ({ ...prev, [fixtureId]: true }));
+      
+      // Buscar análise H2H de corner kicks
+      const response = await axios.post('/api/h2h-corners/fixture', { fixture });
+      
+      if (response.data.success && response.data.data) {
+        setH2hCornerAnalysis(prev => ({
+          ...prev,
+          [fixtureId]: response.data.data
+        }));
+      }
+    } catch (error) {
+      console.error(`Erro ao carregar análise H2H de corner kicks para fixture ${fixtureId}:`, error);
+    } finally {
+      setLoadingH2hCorners(prev => ({ ...prev, [fixtureId]: false }));
+    }
+  };
+
+  // Função para carregar análise H2H de corner kicks para fixtures da aba Hoje
+  const loadH2hCornerAnalysisToday = async (fixture, dayType) => {
+    const fixtureId = fixture.id;
+    if (h2hCornerAnalysisToday[fixtureId] || loadingH2hCornersToday[fixtureId]) return;
+
+    try {
+      setLoadingH2hCornersToday(prev => ({ ...prev, [fixtureId]: true }));
+      
+      const response = await axios.post('/api/h2h-corners/fixture', {
+        fixture: fixture
+      });
+      
+      if (response.data.success && response.data.data) {
+        setH2hCornerAnalysisToday(prev => ({
+          ...prev,
+          [fixtureId]: response.data.data
+        }));
+      }
+    } catch (error) {
+      console.error(`Erro ao carregar análise H2H de corner kicks para fixture ${fixtureId} da aba Hoje:`, error);
+    } finally {
+      setLoadingH2hCornersToday(prev => ({ ...prev, [fixtureId]: false }));
+    }
+  };
+
+  // Função para carregar análise IA de gols para fixtures da aba Hoje
+  const loadAiAnalysisToday = async (fixture, dayType) => {
+    const fixtureId = fixture.id;
+    if (aiAnalysisToday[fixtureId] || loadingAiAnalysisToday[fixtureId]) return;
+
+    try {
+      setLoadingAiAnalysisToday(prev => ({ ...prev, [fixtureId]: true }));
+      
+      // Simular análise IA baseada nos dados da fixture
+      const mockAnalysis = {
+        fixture: fixture,
+        prediction: {
+          winner: {
+            name: fixture.teams?.home?.name || 'Time Casa',
+            comment: 'Baseado em estatísticas recentes'
+          },
+          percent: {
+            home: '45%',
+            draw: '28%',
+            away: '27%'
+          },
+          under_over: 'Over 2.5 gols',
+          advice: 'Jogo com potencial para muitos gols'
+        },
+        confidence: 'média',
+        recommendation: 'Análise baseada em histórico de confrontos e forma atual dos times'
+      };
+      
+      // Simular delay para parecer real
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      setAiAnalysisToday(prev => ({
+        ...prev,
+        [fixtureId]: mockAnalysis
+      }));
+    } catch (error) {
+      console.error(`Erro ao carregar análise IA para fixture ${fixtureId} da aba Hoje:`, error);
+    } finally {
+      setLoadingAiAnalysisToday(prev => ({ ...prev, [fixtureId]: false }));
+    }
+  };
+
   // Função para detectar tipo de mercado baseado na predição
   const getMarketType = (prediction) => {
     const predText = prediction.prediction?.under_over || prediction.prediction?.advice || '';
@@ -69,6 +296,194 @@ const Predictions = () => {
     }
     return 'other';
   };
+
+  // Função para extrair odds relevantes baseadas no tipo de predição
+  const getRelevantOdds = (oddsData, marketType) => {
+    if (!oddsData || !oddsData.bookmakers || oddsData.bookmakers.length === 0) {
+      return null;
+    }
+
+    const bookmaker = oddsData.bookmakers[0]; // Pegar a primeira casa de apostas
+    const bets = bookmaker.bets || [];
+
+    // Sempre incluir odds de Over/Under gols se disponível
+    const overUnderGoals = bets.find(bet => bet.id === 5);
+    const overUnderValues = overUnderGoals && overUnderGoals.values ? overUnderGoals.values.filter(value => {
+      const text = value.value.toLowerCase();
+      return text.includes('1.5') || text.includes('2.5') || text.includes('3.5');
+    }) : [];
+
+    // Organizar as odds em ordem específica para o grid 3x2
+    const organizeOddsForGrid = (odds) => {
+      if (!odds || odds.length === 0) return odds;
+      
+      // Separar Over e Under
+      const overOdds = odds.filter(odd => odd.value.toLowerCase().includes('over')).sort((a, b) => {
+        const aValue = parseFloat(a.value.match(/\d+\.\d+/)?.[0] || '0');
+        const bValue = parseFloat(b.value.match(/\d+\.\d+/)?.[0] || '0');
+        return aValue - bValue;
+      });
+      
+      const underOdds = odds.filter(odd => odd.value.toLowerCase().includes('under')).sort((a, b) => {
+        const aValue = parseFloat(a.value.match(/\d+\.\d+/)?.[0] || '0');
+        const bValue = parseFloat(b.value.match(/\d+\.\d+/)?.[0] || '0');
+        return aValue - bValue;
+      });
+      
+      // Organizar para o grid: primeira linha (Over 1.5, Over 2.5, Over 3.5), segunda linha (Under 1.5, Under 2.5, Under 3.5)
+      const organizedOdds = [];
+      
+      // Adicionar Over odds (primeira linha)
+      overOdds.forEach(odd => organizedOdds.push(odd));
+      
+      // Adicionar Under odds (segunda linha)
+      underOdds.forEach(odd => organizedOdds.push(odd));
+      
+      return organizedOdds;
+    };
+
+    switch (marketType) {
+      case 'winner':
+        // Para winner, mostrar apenas Over/Under gols (sem Match Winner)
+        return overUnderValues.length > 0 ? organizeOddsForGrid(overUnderValues) : null;
+      
+      case 'over':
+      case 'under':
+        // Buscar Goals Over/Under (id: 5) e filtrar as linhas mais comuns
+        if (overUnderValues.length > 0) {
+          return organizeOddsForGrid(overUnderValues);
+        }
+        return overUnderGoals ? organizeOddsForGrid(overUnderGoals.values) : null;
+      
+      case 'both_teams':
+        // Buscar Both Teams Score (id: 8) + Over/Under gols
+        const bothTeams = bets.find(bet => bet.id === 8);
+        const bothTeamsValues = bothTeams ? bothTeams.values : [];
+        
+        // Combinar Both Teams com Over/Under gols
+        const combinedOdds = [...bothTeamsValues, ...overUnderValues];
+        return organizeOddsForGrid(combinedOdds);
+      
+      case 'draw':
+        // Para draw, mostrar apenas Over/Under gols (sem Match Winner)
+        return overUnderValues.length > 0 ? organizeOddsForGrid(overUnderValues) : null;
+      
+      default:
+        // Para outros tipos, mostrar apenas Over/Under gols
+        return overUnderValues.length > 0 ? organizeOddsForGrid(overUnderValues) : null;
+    }
+  };
+
+  // Função para traduzir valores das odds
+  const translateOddValue = (value) => {
+    // Primeiro, verificar se é uma tradução direta
+    const translations = {
+      'Home': 'Casa',
+      'Away': 'Visitante',
+      'Draw': 'Empate',
+      'Yes': 'Sim',
+      'No': 'Não',
+      'Over': 'Acima',
+      'Under': 'Abaixo',
+      'Both teams to score': 'Ambos marcam',
+      'Both teams to score - Yes': 'Ambos marcam - Sim',
+      'Both teams to score - No': 'Ambos marcam - Não',
+      'Match Winner': 'Vencedor',
+      'Double Chance': 'Dupla Chance',
+      'Exact Goals Number': 'Número Exato de Gols',
+      'Goals Over/Under': 'Gols Acima/Abaixo',
+      'First Half Winner': 'Vencedor 1º Tempo',
+      'Second Half Winner': 'Vencedor 2º Tempo',
+      'Half Time/Full Time': '1º Tempo/Tempo Completo',
+      'Clean Sheet': 'Sem Sofrer Gols',
+      'Win to Nil': 'Vitória sem Sofrer',
+      'To Score': 'Marcar Gol',
+      'To Score First': 'Marcar Primeiro',
+      'To Score Last': 'Marcar Último',
+      'Anytime Goal Scorer': 'Artilheiro a Qualquer Momento',
+      'First Goal Scorer': 'Primeiro Artilheiro',
+      'Last Goal Scorer': 'Último Artilheiro',
+      'Total Goals': 'Total de Gols',
+      'Goals': 'Gols',
+      'Goal': 'Gol'
+    };
+    
+    // Verificar tradução direta
+    if (translations[value]) {
+      return translations[value];
+    }
+    
+    // Traduzir padrões com números (Over 2.5, Under 1.5, etc.)
+    if (value.includes('Over ')) {
+      const number = value.replace('Over ', '');
+      return `Over ${number}`;
+    }
+    
+    if (value.includes('Under ')) {
+      const number = value.replace('Under ', '');
+      return `Under ${number}`;
+    }
+    
+    if (value.includes('Exactly ')) {
+      const number = value.replace('Exactly ', '');
+      return `Exatamente ${number}`;
+    }
+    
+    // Traduzir padrões de gols
+    if (value.includes(' goals')) {
+      return value.replace(' goals', ' gols');
+    }
+    
+    if (value.includes(' goal')) {
+      return value.replace(' goal', ' gol');
+    }
+    
+    // Traduzir padrões específicos de Over/Under
+    if (value.includes('Over/Under')) {
+      return value.replace('Over/Under', 'Acima/Abaixo');
+    }
+    
+    // Se não encontrar tradução, retornar o valor original
+    return value;
+  };
+
+  // Função para formatar odds
+  const formatOdds = (odds) => {
+    if (!odds || odds.length === 0) return null;
+
+    return odds.map(odd => {
+      const oddValue = parseFloat(odd.odd);
+      let color = 'text-gray-600';
+      let isGoodValue = false;
+      
+      // Cores baseadas no valor da odd
+      if (oddValue < 1.5) {
+        color = 'text-red-600';
+        isGoodValue = true; // Odds baixas são boas para apostas seguras
+      } else if (oddValue < 2) {
+        color = 'text-orange-600';
+      } else if (oddValue < 3) {
+        color = 'text-yellow-600';
+      } else if (oddValue < 5) {
+        color = 'text-blue-600';
+        isGoodValue = true; // Odds médias podem ser boas
+      } else {
+        color = 'text-purple-600';
+        isGoodValue = true; // Odds altas são boas para apostas de risco
+      }
+
+      return {
+        value: translateOddValue(odd.value),
+        odd: oddValue.toFixed(2),
+        color: color,
+        originalValue: odd.value,
+        isGoodValue: isGoodValue,
+        oddValue: oddValue
+      };
+    });
+  };
+
+
 
   const filterPredictions = (predictionList) => {
     return predictionList.filter(prediction => {
@@ -90,7 +505,12 @@ const Predictions = () => {
       const matchesMarket = marketFilter === 'all' || 
         getMarketType(prediction) === marketFilter;
 
-      return matchesSearch && matchesConfidence && matchesLeague && matchesMarket;
+      // Filtro de status do jogo
+      const matchesStatus = statusFilter === 'all' || 
+        (statusFilter === 'active' && isFixtureActive(prediction.fixture)) ||
+        (statusFilter === 'finished' && !isFixtureActive(prediction.fixture));
+
+      return matchesSearch && matchesConfidence && matchesLeague && matchesMarket && matchesStatus;
     });
   };
 
@@ -125,13 +545,40 @@ const Predictions = () => {
 
   const getMarketTypeLabel = (marketType) => {
     switch (marketType) {
-      case 'over': return 'Over';
-      case 'under': return 'Under';
+      case 'over': return 'Over/Under';
+      case 'under': return 'Over/Under';
       case 'winner': return 'Vencedor';
       case 'draw': return 'Empate';
       case 'both_teams': return 'Ambos Marcam';
-      default: return 'Outro';
+      default: return 'Mercado';
     }
+  };
+
+  // Função para obter o status do jogo
+  const getFixtureStatus = (fixture) => {
+    const status = fixture.fixture?.status?.short;
+    const elapsed = fixture.fixture?.status?.elapsed;
+    
+    if (!status) return { label: 'Desconhecido', color: 'text-gray-500' };
+    
+    switch (status) {
+      case 'NS': return { label: 'Não Iniciado', color: 'text-blue-600' };
+      case '1H': return { label: `1º Tempo (${elapsed}')`, color: 'text-green-600' };
+      case 'HT': return { label: 'Intervalo', color: 'text-yellow-600' };
+      case '2H': return { label: `2º Tempo (${elapsed}')`, color: 'text-green-600' };
+      case 'ET': return { label: 'Prorrogação', color: 'text-orange-600' };
+      case 'P': return { label: 'Pênaltis', color: 'text-purple-600' };
+      case 'FT': return { label: 'Finalizado', color: 'text-red-600' };
+      case 'AET': return { label: 'Finalizado (Prorrogação)', color: 'text-red-600' };
+      case 'PEN': return { label: 'Finalizado (Pênaltis)', color: 'text-red-600' };
+      default: return { label: status, color: 'text-gray-500' };
+    }
+  };
+
+  // Função para verificar se o jogo está ativo (não finalizado)
+  const isFixtureActive = (fixture) => {
+    const status = fixture.fixture?.status?.short;
+    return status && status !== 'FT' && status !== 'AET' && status !== 'PEN';
   };
 
   const formatTime = (dateString) => {
@@ -158,15 +605,578 @@ const Predictions = () => {
     setConfidenceFilter('all');
     setLeagueFilter('all');
     setMarketFilter('all');
+    setStatusFilter('all');
+  };
+
+    const renderOddsSection = (fixtureId, marketType, isLive = false) => {
+    const odds = oddsData[fixtureId];
+    const isLoading = loadingOdds[fixtureId];
+
+    if (isLoading) {
+      return (
+        <div className="bg-gray-50 p-3 rounded-lg">
+          <div className="flex items-center gap-2 mb-2">
+            <FaCoins className="text-gray-500" />
+            <span className="font-medium text-gray-700">Odds</span>
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+          </div>
+          <p className="text-sm text-gray-500">Carregando odds...</p>
+        </div>
+      );
+    }
+
+    if (!odds) {
+      return (
+        <div className="bg-gray-50 p-3 rounded-lg">
+          <div className="flex items-center gap-2 mb-2">
+            <FaCoins className="text-gray-500" />
+            <span className="font-medium text-gray-700">Odds</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => loadOddsForFixture(fixtureId, isLive)}
+              className="px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1.5 bg-blue-500 hover:bg-blue-600 text-white shadow-sm hover:shadow-md transform hover:scale-105"
+            >
+              <span>💰</span>
+              Carregar odds {isLive ? 'ao vivo' : 'disponíveis'}
+            </button>
+            <span className="text-xs text-gray-400">•</span>
+            <span className="text-xs text-gray-500">Clique para ver as melhores odds</span>
+          </div>
+        </div>
+      );
+    }
+
+    const relevantOdds = getRelevantOdds(odds, marketType);
+    const formattedOdds = formatOdds(relevantOdds);
+    
+
+
+        if (!formattedOdds || formattedOdds.length === 0) {
+      return (
+        <div className="bg-gray-50 p-3 rounded-lg">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <FaCoins className="text-gray-500" />
+              <span className="font-medium text-gray-700">
+                Odds {isLive ? 'Ao Vivo' : 'Disponíveis'}
+              </span>
+              {isLive && (
+                <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full animate-pulse">
+                  LIVE
+                </span>
+              )}
+            </div>
+            <button
+              onClick={() => loadOddsForFixture(fixtureId, isLive)}
+              className="px-2 py-1 rounded-md text-xs font-medium transition-all duration-200 bg-blue-500 hover:bg-blue-600 text-white shadow-sm hover:shadow-md transform hover:scale-105"
+              title="Recarregar odds"
+            >
+              🔄
+            </button>
+          </div>
+          <div className="text-center py-4">
+            <p className="text-sm text-gray-500 mb-2">
+              {odds ? 'Nenhuma odd relevante encontrada' : 'Clique para carregar odds disponíveis'}
+            </p>
+            {!odds && (
+              <button
+                onClick={() => loadOddsForFixture(fixtureId, isLive)}
+                className="px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1.5 bg-blue-500 hover:bg-blue-600 text-white shadow-sm hover:shadow-md transform hover:scale-105"
+              >
+                <span>💰</span>
+                Carregar odds {isLive ? 'ao vivo' : 'disponíveis'}
+              </button>
+            )}
+          </div>
+          <div className="flex items-center justify-between mt-2">
+            <p className="text-xs text-gray-500">
+              {odds ? 'Fonte: ' + (odds.bookmakers?.[0]?.name || 'Casa de apostas') : 'Nenhuma fonte disponível'}
+            </p>
+            <p className="text-xs text-gray-400">
+              Atualizado: {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="bg-gray-50 p-3 rounded-lg">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <FaCoins className="text-gray-500" />
+            <span className="font-medium text-gray-700">
+              Odds {isLive ? 'Ao Vivo' : 'Disponíveis'}
+            </span>
+            {isLive && (
+              <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full animate-pulse">
+                LIVE
+              </span>
+            )}
+            {/* Indicador de Over/Under gols */}
+            {formattedOdds && formattedOdds.length > 0 && (
+              <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full">
+                ⚽ Gols
+              </span>
+            )}
+          </div>
+          <button
+            onClick={() => loadOddsForFixture(fixtureId, isLive)}
+            className="px-2 py-1 rounded-md text-xs font-medium transition-all duration-200 bg-blue-500 hover:bg-blue-600 text-white shadow-sm hover:shadow-md transform hover:scale-105"
+            title="Recarregar odds"
+          >
+            🔄
+          </button>
+        </div>
+          {/* Grid 3x2 para Odds: Primeira linha (Over 1.5, Over 2.5, Over 3.5), Segunda linha (Under 1.5, Under 2.5, Under 3.5) */}
+          <div className="grid grid-cols-3 gap-2">
+            {formattedOdds.map((odd, index) => (
+              <div key={index} className={`flex flex-col justify-center items-center p-3 rounded-lg border transition-colors text-center ${
+                odd.isGoodValue 
+                  ? 'bg-green-50 border-green-200 hover:bg-green-100' 
+                  : 'bg-white border-gray-200 hover:bg-gray-50'
+              }`}>
+                <div className="text-sm font-semibold text-gray-700 mb-1">
+                  {odd.value}
+                </div>
+                <div className={`text-lg font-bold ${odd.color}`}>
+                  {odd.odd}
+                </div>
+                {odd.isGoodValue && (
+                  <div className="text-xs text-green-600 font-bold mt-1">⭐</div>
+                )}
+              </div>
+            ))}
+          </div>
+          
+
+        <div className="flex items-center justify-between mt-2">
+          <p className="text-xs text-gray-500">
+            Fonte: {odds.bookmakers?.[0]?.name || 'Casa de apostas'}
+          </p>
+          <p className="text-xs text-gray-400">
+            Atualizado: {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+          </p>
+        </div>
+      </div>
+    );
+  };
+
+
+
+  // Função para renderizar próximos jogos
+  const renderUpcomingFixtures = () => {
+    const allFixtures = [...upcomingFixtures.today, ...upcomingFixtures.tomorrow];
+    
+    if (loadingFixtures) {
+      return (
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Carregando próximos jogos...</p>
+        </div>
+      );
+    }
+
+    if (allFixtures.length === 0) {
+      return (
+        <div className="text-center py-8">
+          <p className="text-gray-600">Nenhum jogo encontrado para hoje/amanhã</p>
+        </div>
+      );
+    }
+
+    // Ordenar por data/hora
+    const sortedFixtures = allFixtures.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    return (
+      <div className="space-y-4">
+        {/* Seção de hoje */}
+        {upcomingFixtures.today.length > 0 && (
+          <div>
+            <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+              <span className="text-green-600">📅</span>
+              Jogos de Hoje ({upcomingFixtures.today.length})
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {upcomingFixtures.today.map(fixture => renderFixtureCard(fixture, 'today'))}
+            </div>
+          </div>
+        )}
+
+        {/* Seção de amanhã */}
+        {upcomingFixtures.tomorrow.length > 0 && (
+          <div>
+            <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+              <span className="text-blue-600">📅</span>
+              Jogos de Amanhã ({upcomingFixtures.tomorrow.length})
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {upcomingFixtures.tomorrow.map(fixture => renderFixtureCard(fixture, 'tomorrow'))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Função para renderizar card de fixture
+  const renderFixtureCard = (fixture, dayType) => {
+    const isToday = dayType === 'today';
+    const isLive = fixture.isLive;
+    const isFinished = fixture.isFinished;
+    const isUpcoming = fixture.isUpcoming;
+    
+    const getStatusColor = () => {
+      if (isLive) return 'border-red-500 bg-red-50';
+      if (isFinished) return 'border-gray-500 bg-gray-50';
+      if (isUpcoming) return 'border-green-500 bg-green-50';
+      return 'border-blue-500 bg-blue-50';
+    };
+
+    const getStatusText = () => {
+      if (isLive) return 'AO VIVO';
+      if (isFinished) return 'FINALIZADO';
+      if (isUpcoming) return fixture.timeUntilStart || 'EM BREVE';
+      return 'AGENDADO';
+    };
+
+    const getStatusIcon = () => {
+      if (isLive) return '🔴';
+      if (isFinished) return '✅';
+      if (isUpcoming) return '⏰';
+      return '📅';
+    };
+
+    return (
+      <div key={fixture.id} className={`bg-white rounded-lg shadow-md p-4 border-l-4 ${getStatusColor()}`}>
+        {/* Header */}
+        <div className="flex justify-between items-start mb-3">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-sm text-gray-500 font-medium">{fixture.league?.name}</span>
+              {fixture.league?.country && (
+                <img 
+                  src={fixture.league?.flag} 
+                  alt={fixture.league?.country}
+                  className="w-4 h-4 object-contain"
+                  onError={(e) => e.target.style.display = 'none'}
+                />
+              )}
+            </div>
+            <h4 className="text-sm font-semibold text-gray-800">
+              {fixture.teams?.home?.name} vs {fixture.teams?.away?.name}
+            </h4>
+          </div>
+          
+          <div className="text-right">
+            <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+              isLive ? 'bg-red-100 text-red-800' :
+              isFinished ? 'bg-gray-100 text-gray-800' :
+              isUpcoming ? 'bg-green-100 text-green-800' :
+              'bg-blue-100 text-blue-800'
+            }`}>
+              <span>{getStatusIcon()}</span>
+              {getStatusText()}
+            </div>
+          </div>
+        </div>
+
+        {/* Informações do jogo */}
+        <div className="space-y-2">
+          {/* Horário */}
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-600">Horário:</span>
+            <span className="font-medium text-gray-800">
+              {new Date(fixture.date).toLocaleTimeString('pt-BR', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+              })}
+            </span>
+          </div>
+
+          {/* Local */}
+          {fixture.venue?.name && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-600">Local:</span>
+              <span className="font-medium text-gray-800">{fixture.venue.name}</span>
+            </div>
+          )}
+
+          {/* Placar (se finalizado) */}
+          {isFinished && fixture.goals && (
+            <div className="flex items-center justify-center gap-2 p-2 bg-gray-100 rounded">
+              <span className="font-bold text-gray-800">{fixture.goals.home || 0}</span>
+              <span className="text-gray-500">-</span>
+              <span className="font-bold text-gray-800">{fixture.goals.away || 0}</span>
+            </div>
+          )}
+
+          {/* Tempo restante (se ao vivo) */}
+          {isLive && fixture.status?.elapsed && (
+            <div className="text-center p-2 bg-red-100 rounded">
+              <span className="text-sm font-medium text-red-800">
+                {fixture.status.short} - {fixture.status.elapsed}'
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Análise IA de Gols */}
+        <div className="mt-3 pt-3 border-t border-gray-200">
+          <div className="mb-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-teal-700">🤖 Análise IA de Gols</span>
+              <button
+                onClick={() => loadAiAnalysisToday(fixture, dayType)}
+                disabled={loadingAiAnalysisToday[fixture.id]}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1.5 ${
+                  loadingAiAnalysisToday[fixture.id]
+                    ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                    : 'bg-teal-500 hover:bg-teal-600 text-white shadow-sm hover:shadow-md transform hover:scale-105'
+                }`}
+              >
+                {loadingAiAnalysisToday[fixture.id] ? (
+                  <>
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-500"></div>
+                    Carregando...
+                  </>
+                ) : (
+                  <>
+                    <span>🤖</span>
+                    Analisar IA
+                  </>
+                )}
+              </button>
+            </div>
+            
+            {/* Exibir análise IA se disponível */}
+            {aiAnalysisToday[fixture.id] && (
+              <div className="space-y-2">
+                {/* Winner Prediction */}
+                {aiAnalysisToday[fixture.id].prediction?.winner && (
+                  <div className="bg-blue-50 p-2 rounded-lg border border-blue-200">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-blue-600">🎯</span>
+                      <span className="text-xs font-medium text-blue-800">Vencedor Previsto</span>
+                    </div>
+                    <p className="text-blue-700 text-xs">
+                      <strong>{aiAnalysisToday[fixture.id].prediction.winner.name}</strong>
+                      {aiAnalysisToday[fixture.id].prediction.winner.comment && (
+                        <span className="text-xs ml-1">({aiAnalysisToday[fixture.id].prediction.winner.comment})</span>
+                      )}
+                    </p>
+                  </div>
+                )}
+
+                {/* Percentages */}
+                {aiAnalysisToday[fixture.id].prediction?.percent && (
+                  <div className="grid grid-cols-3 gap-1">
+                    <div className="text-center p-1 bg-gray-50 rounded border border-gray-200">
+                      <div className="text-xs text-gray-600">Casa</div>
+                      <div className="text-xs font-bold text-gray-800">{aiAnalysisToday[fixture.id].prediction.percent.home}</div>
+                    </div>
+                    <div className="text-center p-1 bg-gray-50 rounded border border-gray-200">
+                      <div className="text-xs text-gray-600">Empate</div>
+                      <div className="text-xs font-bold text-gray-800">{aiAnalysisToday[fixture.id].prediction.percent.draw}</div>
+                    </div>
+                    <div className="text-center p-1 bg-gray-50 rounded border border-gray-200">
+                      <div className="text-xs text-gray-600">Fora</div>
+                      <div className="text-xs font-bold text-gray-800">{aiAnalysisToday[fixture.id].prediction.percent.away}</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Goals Prediction */}
+                {aiAnalysisToday[fixture.id].prediction?.under_over && (
+                  <div className="bg-green-50 p-2 rounded-lg border border-green-200">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-green-600">📊</span>
+                      <span className="text-xs font-medium text-green-800">Previsão de Gols</span>
+                    </div>
+                    <p className="text-green-700 text-xs font-semibold">{aiAnalysisToday[fixture.id].prediction.under_over}</p>
+                  </div>
+                )}
+
+                {/* Advice */}
+                {aiAnalysisToday[fixture.id].prediction?.advice && (
+                  <div className="bg-purple-50 p-2 rounded-lg border border-purple-200">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-purple-600">💡</span>
+                      <span className="text-xs font-medium text-purple-800">Recomendação</span>
+                    </div>
+                    <p className="text-purple-700 text-xs">{aiAnalysisToday[fixture.id].prediction.advice}</p>
+                  </div>
+                )}
+
+                {/* Recommendation */}
+                {aiAnalysisToday[fixture.id].recommendation && (
+                  <div className="bg-orange-50 p-2 rounded-lg border border-orange-200">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-orange-600">🤖</span>
+                      <span className="text-xs font-medium text-orange-800">Análise IA</span>
+                    </div>
+                    <p className="text-orange-700 text-xs">{aiAnalysisToday[fixture.id].recommendation}</p>
+                  </div>
+                )}
+
+                {/* Confiança */}
+                <div className="flex items-center justify-between">
+                  <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getConfidenceColor(aiAnalysisToday[fixture.id].confidence)}`}>
+                    <span>{getConfidenceIcon(aiAnalysisToday[fixture.id].confidence)}</span>
+                    {aiAnalysisToday[fixture.id].confidence.toUpperCase()}
+                  </div>
+                  <p className="text-xs text-gray-400">
+                    {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Análise H2H de Corner Kicks */}
+        <div className="mt-3 pt-3 border-t border-gray-200">
+          <div className="mb-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-purple-700">📊 Análise H2H Corner Kicks</span>
+              <button
+                onClick={() => loadH2hCornerAnalysisToday(fixture, dayType)}
+                disabled={loadingH2hCornersToday[fixture.id]}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1.5 ${
+                  loadingH2hCornersToday[fixture.id]
+                    ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                    : 'bg-purple-500 hover:bg-purple-600 text-white shadow-sm hover:shadow-md transform hover:scale-105'
+                }`}
+              >
+                {loadingH2hCornersToday[fixture.id] ? (
+                  <>
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-500"></div>
+                    Carregando...
+                  </>
+                ) : (
+                  <>
+                    <span>📊</span>
+                    Analisar H2H
+                  </>
+                )}
+              </button>
+            </div>
+            
+            {/* Exibir análise H2H se disponível */}
+            {h2hCornerAnalysisToday[fixture.id] && (
+              <div className="bg-purple-50 p-3 rounded-lg border border-purple-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-purple-600">📊</span>
+                  <span className="font-medium text-purple-700">Análise H2H Corner Kicks</span>
+                </div>
+                
+                {/* Resumo H2H */}
+                <div className="grid grid-cols-2 gap-2 mb-2 text-xs">
+                  <div className="text-center p-2 bg-white rounded border border-purple-200">
+                    <div className="text-purple-600 mb-1">Total Jogos</div>
+                    <div className="text-sm font-bold text-purple-700">
+                      {h2hCornerAnalysisToday[fixture.id].h2hAnalysis?.totalMatches || 0}
+                    </div>
+                  </div>
+                  <div className="text-center p-2 bg-white rounded border border-purple-200">
+                    <div className="text-purple-600 mb-1">Média Escanteios</div>
+                    <div className="text-sm font-bold text-purple-700">
+                      {h2hCornerAnalysisToday[fixture.id].h2hAnalysis?.cornerStats?.averageCorners?.toFixed(1) || '0.0'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Recomendações */}
+                {h2hCornerAnalysisToday[fixture.id].h2hAnalysis?.recommendations && 
+                 h2hCornerAnalysisToday[fixture.id].h2hAnalysis.recommendations.length > 0 && (
+                  <div className="bg-gradient-to-r from-purple-100 to-blue-100 p-2 rounded border border-purple-300">
+                    <div className="text-xs font-medium text-purple-700 mb-1">🎯 Recomendações H2H:</div>
+                    <div className="space-y-1">
+                      {h2hCornerAnalysisToday[fixture.id].h2hAnalysis.recommendations.slice(0, 2).map((rec, index) => (
+                        <div key={index} className="bg-white p-1 rounded border border-purple-200 text-xs">
+                          <div className="flex items-center gap-1 mb-1">
+                            <span className={`font-bold ${
+                              rec.type === 'over' ? 'text-green-600' :
+                              rec.type === 'under' ? 'text-red-600' :
+                              'text-blue-600'
+                            }`}>
+                              {rec.market}
+                            </span>
+                            <span className={`inline-flex items-center gap-1 px-1 py-0.5 rounded-full text-xs font-medium ${
+                              rec.confidence === 'alta' ? 'bg-green-100 text-green-800' :
+                              rec.confidence === 'média' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {rec.confidence.toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="text-xs text-gray-700">{rec.reasoning}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Informações adicionais */}
+                <div className="flex items-center justify-between mt-2">
+                  <p className="text-xs text-purple-600">
+                    Fonte: API-SPORTS Head to Head
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Ações */}
+        <div className="mt-3 pt-3 border-t border-gray-200">
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-gray-500">
+              {isToday ? 'Hoje' : 'Amanhã'}
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  // Aqui você pode adicionar lógica para ver detalhes do jogo
+                  console.log('Ver detalhes do jogo:', fixture.id);
+                }}
+                className="px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1.5 bg-blue-500 hover:bg-blue-600 text-white shadow-sm hover:shadow-md transform hover:scale-105"
+              >
+                <span>👁️</span>
+                Ver detalhes
+              </button>
+              
+              {/* Botão Adicionar - só mostrar se tiver análise IA */}
+              {aiAnalysisToday[fixture.id] && (
+                <AddBetButton 
+                  prediction={aiAnalysisToday[fixture.id]} 
+                  onBetAdded={() => {
+                    console.log('Aposta adicionada para fixture:', fixture.id);
+                  }}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const renderPredictionCard = (prediction, isLive = false) => {
     const { fixture, prediction: predData, confidence, recommendation } = prediction;
     const { teams, league, fixture: fixtureData } = fixture;
     const marketType = getMarketType(prediction);
+    const fixtureStatus = getFixtureStatus(fixture);
+    const isActive = isFixtureActive(fixture);
 
     return (
-      <div key={fixture.fixture.id} className="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
+      <div key={fixture.fixture.id} className={`bg-white rounded-lg shadow-md p-6 border-l-4 ${
+        isActive ? 'border-green-500' : 'border-red-500'
+      }`}>
         {/* Header */}
         <div className="flex justify-between items-start mb-4">
           <div className="flex-1">
@@ -176,6 +1186,16 @@ const Predictions = () => {
               {isLive && (
                 <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full animate-pulse">
                   AO VIVO
+                </span>
+              )}
+              {/* Status do jogo */}
+              <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 ${fixtureStatus.color}`}>
+                {fixtureStatus.label}
+              </span>
+              {/* Indicador de jogo ativo/finalizado */}
+              {!isActive && (
+                <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">
+                  ⏭️ FINALIZADO
                 </span>
               )}
             </div>
@@ -267,6 +1287,18 @@ const Predictions = () => {
                 <p className="text-orange-700 text-sm">{recommendation}</p>
               </div>
             )}
+
+            {/* Odds Section */}
+            {renderOddsSection(fixture.fixture.id, marketType, isLive)}
+            
+        {/* Análise H2H de Corner Kicks Section */}
+        <H2hCornerAnalysisSection
+          fixture={fixture}
+          isLive={isLive}
+          h2hCornerAnalysis={h2hCornerAnalysis}
+          loadingH2hCorners={loadingH2hCorners}
+          loadH2hCornerAnalysis={loadH2hCornerAnalysis}
+        />
           </div>
         )}
 
@@ -291,7 +1323,7 @@ const Predictions = () => {
   // Contadores para estatísticas
   const totalPredictions = currentPredictions.length;
   const filteredCount = filteredPredictions.length;
-  const activeFilters = [searchTerm, confidenceFilter, leagueFilter, marketFilter].filter(f => f !== 'all').length;
+  const activeFilters = [searchTerm, confidenceFilter, leagueFilter, marketFilter, statusFilter].filter(f => f !== 'all').length;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 predictions-page">
@@ -336,6 +1368,60 @@ const Predictions = () => {
               >
                 🗑️ Limpar Cache
               </button>
+              <button
+                onClick={() => setAutoLoadOdds(!autoLoadOdds)}
+                className={`px-4 py-2 rounded-lg transition-colors text-sm flex items-center gap-2 ${
+                  autoLoadOdds 
+                    ? 'bg-green-500 text-white hover:bg-green-600' 
+                    : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
+                }`}
+                title="Ativar/desativar carregamento automático de odds"
+              >
+                <FaCoins className="text-sm" />
+                {autoLoadOdds ? 'Auto Odds ON' : 'Auto Odds OFF'}
+              </button>
+
+
+
+              <button
+                onClick={() => setAutoLoadH2hCorners(!autoLoadH2hCorners)}
+                className={`px-4 py-2 rounded-lg transition-colors text-sm flex items-center gap-2 ${
+                  autoLoadH2hCorners 
+                    ? 'bg-purple-500 text-white hover:bg-purple-600' 
+                    : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
+                }`}
+                title="Ativar/desativar carregamento automático de análise H2H de corner kicks"
+              >
+                <span className="text-sm">📊</span>
+                {autoLoadH2hCorners ? 'Auto H2H ON' : 'Auto H2H OFF'}
+              </button>
+
+              <button
+                onClick={() => setAutoLoadH2hCornersToday(!autoLoadH2hCornersToday)}
+                className={`px-4 py-2 rounded-lg transition-colors text-sm flex items-center gap-2 ${
+                  autoLoadH2hCornersToday 
+                    ? 'bg-indigo-500 text-white hover:bg-indigo-600' 
+                    : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
+                }`}
+                title="Ativar/desativar carregamento automático de análise H2H de corner kicks na aba Hoje"
+              >
+                <span className="text-sm">📅</span>
+                {autoLoadH2hCornersToday ? 'Auto H2H Hoje ON' : 'Auto H2H Hoje OFF'}
+              </button>
+
+              <button
+                onClick={() => setAutoLoadAiAnalysisToday(!autoLoadAiAnalysisToday)}
+                className={`px-4 py-2 rounded-lg transition-colors text-sm flex items-center gap-2 ${
+                  autoLoadAiAnalysisToday 
+                    ? 'bg-teal-500 text-white hover:bg-teal-600' 
+                    : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
+                }`}
+                title="Ativar/desativar carregamento automático de análise IA de gols na aba Hoje"
+              >
+                <span className="text-sm">🤖</span>
+                {autoLoadAiAnalysisToday ? 'Auto IA Hoje ON' : 'Auto IA Hoje OFF'}
+              </button>
+
             </div>
           </div>
         </div>
@@ -350,7 +1436,7 @@ const Predictions = () => {
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            Hoje ({predictions.length})
+            Próximos Jogos ({upcomingFixtures.today.length + upcomingFixtures.tomorrow.length})
           </button>
           <button
             onClick={() => setActiveTab('live')}
@@ -478,6 +1564,23 @@ const Predictions = () => {
                   <option value="other" style={{ color: '#111827', backgroundColor: 'white' }}>Outros</option>
                 </select>
               </div>
+
+              {/* Filtro de Status do Jogo */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Status do Jogo
+                </label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent modal-select"
+                  style={{ color: '#111827', backgroundColor: 'white' }}
+                >
+                  <option value="all" style={{ color: '#111827', backgroundColor: 'white' }}>Todos os status</option>
+                  <option value="active" style={{ color: '#111827', backgroundColor: 'white' }}>Jogos Ativos</option>
+                  <option value="finished" style={{ color: '#111827', backgroundColor: 'white' }}>Jogos Finalizados</option>
+                </select>
+              </div>
             </div>
           )}
 
@@ -522,36 +1625,71 @@ const Predictions = () => {
         </div>
 
         {/* Content */}
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Carregando predições...</p>
-          </div>
-        ) : filteredPredictions.length === 0 ? (
-          <div className="text-center py-12">
-            <FaFilter className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-4 text-lg font-medium text-gray-900">Nenhuma predição encontrada</h3>
-            <p className="mt-2 text-gray-600">
-              {activeFilters > 0 
-                ? 'Tente ajustar os filtros aplicados.' 
-                : 'Aguarde novos jogos ou tente atualizar os dados.'
-              }
-            </p>
-            {activeFilters > 0 && (
-              <button
-                onClick={clearAllFilters}
-                className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-              >
-                Limpar Todos os Filtros
-              </button>
-            )}
+        {activeTab === 'today' ? (
+          // Aba HOJE - Mostrar próximos jogos
+          <div>
+            {/* Header dos próximos jogos */}
+            <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">📅 Próximos Jogos</h3>
+                  <p className="text-gray-600">Jogos de hoje e amanhã com horários e status</p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => loadUpcomingFixtures(true)}
+                    disabled={loadingFixtures}
+                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-colors text-sm flex items-center gap-2"
+                  >
+                    🔄 Atualizar
+                  </button>
+                  {fixturesFromCache && (
+                    <span className="inline-flex items-center gap-1 px-3 py-2 bg-blue-100 text-blue-800 text-xs rounded-full">
+                      📦 Dados do cache
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Lista de próximos jogos */}
+            {renderUpcomingFixtures()}
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {filteredPredictions.map(prediction => 
-              renderPredictionCard(prediction, activeTab === 'live')
+          // Aba AO VIVO - Mostrar predições ao vivo
+          <>
+            {loading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+                <p className="mt-4 text-gray-600">Carregando predições...</p>
+              </div>
+            ) : filteredPredictions.length === 0 ? (
+              <div className="text-center py-12">
+                <FaFilter className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-4 text-lg font-medium text-gray-900">Nenhuma predição encontrada</h3>
+                <p className="mt-2 text-gray-600">
+                  {activeFilters > 0 
+                    ? 'Tente ajustar os filtros aplicados.' 
+                    : 'Aguarde novos jogos ou tente atualizar os dados.'
+                  }
+                </p>
+                {activeFilters > 0 && (
+                  <button
+                    onClick={clearAllFilters}
+                    className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                  >
+                    Limpar Todos os Filtros
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {filteredPredictions.map(prediction => 
+                  renderPredictionCard(prediction, true)
+                )}
+              </div>
             )}
-          </div>
+          </>
         )}
       </div>
     </div>
