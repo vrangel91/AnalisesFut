@@ -12,7 +12,7 @@ const Statistics = () => {
         <p className="text-gray-400">Análise detalhada de estatísticas dos times e jogadores</p>
       </div>
 
-      <div className="bg-slate-800 rounded-lg p-6">
+      <div className="bg-slate-200 rounded-lg p-6">
         <div className="text-center py-8">
           <FaChartBar className="text-gray-400 text-4xl mx-auto mb-4" />
           <p className="text-gray-400">Funcionalidade em desenvolvimento</p>

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { FaCalendar, FaClock, FaChartLine, FaDice, FaEye, FaInfoCircle, FaFire, FaFutbol, FaFlag, FaExclamationTriangle, FaBullseye } from 'react-icons/fa';
 import axios from 'axios';
+import '../styles/global.css';
+import './Dashboard.css';
 
 const Dashboard = () => {
   const [todayFixtures, setTodayFixtures] = useState([]);
@@ -104,10 +106,10 @@ const Dashboard = () => {
 
   const getConfidenceColor = (confidence) => {
     switch (confidence) {
-      case 'alta': return 'text-green-600 bg-green-100';
-      case 'média': return 'text-yellow-600 bg-yellow-100';
-      case 'baixa': return 'text-red-600 bg-red-100';
-      default: return 'text-gray-600 bg-gray-100';
+      case 'alta': return 'badge success';
+      case 'média': return 'badge warning';
+      case 'baixa': return 'badge danger';
+      default: return 'badge info';
     }
   };
 
@@ -122,11 +124,11 @@ const Dashboard = () => {
 
   const getOverUnderIcon = (type) => {
     switch (type) {
-      case 'gols': return <FaFutbol className="text-blue-600 text-xs" />;
-      case 'escanteios': return <FaFlag className="text-green-600 text-xs" />;
-      case 'finalizações': return <FaBullseye className="text-purple-600 text-xs" />;
-      case 'cartões': return <FaExclamationTriangle className="text-red-600 text-xs" />;
-      default: return <FaChartLine className="text-gray-600 text-xs" />;
+      case 'gols': return <FaFutbol className="text-blue" />;
+      case 'escanteios': return <FaFlag className="text-green" />;
+      case 'finalizações': return <FaBullseye className="text-gold" />;
+      case 'cartões': return <FaExclamationTriangle className="text-danger" />;
+      default: return <FaChartLine className="text-muted" />;
     }
   };
 
@@ -316,39 +318,39 @@ const Dashboard = () => {
       }
 
       return (
-        <div key={fixture.fixture.id} className="bg-white rounded-lg shadow-sm p-4 border-l-4 border-blue-500">
-          <div className="flex justify-between items-start mb-3">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-xs text-gray-500">{league.name}</span>
+        <div key={fixture.fixture.id} className="card border-left-blue">
+          <div className="card-header">
+            <div className="card-content">
+              <div className="fixture-info">
+                <span className="league-name">{league.name}</span>
                 {isLive && (
-                  <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full animate-pulse">
+                  <span className="live-badge">
                     AO VIVO
                   </span>
                 )}
               </div>
-              <h4 className="font-semibold text-gray-800 text-sm">
+              <h4 className="fixture-title">
                 {teams.home.name} vs {teams.away.name}
               </h4>
-              <p className="text-xs text-gray-600">
+              <p className="fixture-time">
                 {formatTime(fixtureData.date)}
               </p>
             </div>
             
-            <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getConfidenceColor(confidence)}`}>
+            <div className={`confidence-badge ${getConfidenceColor(confidence)}`}>
               <span>{getConfidenceIcon(confidence)}</span>
               {confidence.toUpperCase()}
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="analysis-content">
             {overUnderAnalysis.map((analysis, index) => (
-              <div key={index} className={`p-2 rounded ${getOverUnderColor(analysis.type)}`}>
-                <div className="flex items-center gap-1 mb-1">
+              <div key={index} className={`analysis-item ${getOverUnderColor(analysis.type)}`}>
+                <div className="analysis-header">
                   {getOverUnderIcon(analysis.type)}
-                  <span className="text-xs font-medium capitalize">{analysis.type}</span>
+                  <span className="analysis-type">{analysis.type}</span>
                 </div>
-                <p className="text-xs font-semibold">{analysis.prediction}</p>
+                <p className="analysis-prediction">{analysis.prediction}</p>
               </div>
             ))}
           </div>
@@ -369,31 +371,31 @@ const Dashboard = () => {
       const { teams, league, fixture: fixtureData } = fixture;
 
       return (
-        <div key={fixture.fixture.id} className="bg-white rounded-lg shadow-sm p-4">
-          <div className="flex justify-between items-start mb-3">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-xs text-gray-500">{league.name}</span>
+        <div key={fixture.fixture.id} className="card">
+          <div className="card-header">
+            <div className="card-content">
+              <div className="fixture-info">
+                <span className="league-name">{league.name}</span>
                 {isLive && (
-                  <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full animate-pulse">
+                  <span className="live-badge">
                     AO VIVO
                   </span>
                 )}
               </div>
-              <h4 className="font-semibold text-gray-800 text-sm">
+              <h4 className="fixture-title">
                 {teams.home.name} vs {teams.away.name}
               </h4>
-              <p className="text-xs text-gray-600">
+              <p className="fixture-time">
                 {formatTime(fixtureData.date)}
               </p>
             </div>
             
-            <div className="text-right">
-              <div className="text-xs text-gray-500">
+            <div className="fixture-status">
+              <div className="status-text">
                 {fixtureData.status.short}
               </div>
               {fixtureData.status.elapsed && (
-                <div className="text-xs text-red-600 font-semibold">
+                <div className="elapsed-time">
                   {fixtureData.status.elapsed}'
                 </div>
               )}
@@ -401,8 +403,8 @@ const Dashboard = () => {
           </div>
 
           {fixture.goals && (
-            <div className="text-center">
-              <div className="text-lg font-bold text-gray-800">
+            <div className="goals-display">
+              <div className="goals-score">
                 {fixture.goals.home} - {fixture.goals.away}
               </div>
             </div>
@@ -417,12 +419,10 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Carregando dashboard...</p>
-          </div>
+      <div className="loading-container">
+        <div className="loading-content">
+          <div className="loading-spinner"></div>
+          <p className="loading-text">Carregando dashboard...</p>
         </div>
       </div>
     );
@@ -430,19 +430,22 @@ const Dashboard = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center py-12">
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-              <p className="font-bold">Erro ao carregar dados</p>
-              <p className="text-sm">{error}</p>
+      <div className="page-container">
+        <div className="page-content">
+          <div className="error-container">
+            <div className="card">
+              <div className="error-content">
+                <FaExclamationTriangle className="error-icon" />
+                <h2 className="error-title">Erro ao carregar dados</h2>
+                <p className="error-message">{error}</p>
+                <button
+                  onClick={loadDashboardData}
+                  className="btn-primary"
+                >
+                  Tentar novamente
+                </button>
+              </div>
             </div>
-            <button
-              onClick={loadDashboardData}
-              className="mt-4 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-            >
-              Tentar novamente
-            </button>
           </div>
         </div>
       </div>
@@ -450,29 +453,30 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="dashboard-container">
+      <div className="dashboard-content">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                🎯 Dashboard Over/Under
+        <div className="dashboard-header">
+          <div className="header-content">
+            <div className="header-title">
+              <h1>
+                <FaBullseye className="header-icon" />
+                Dashboard Over/Under
               </h1>
-              <p className="text-gray-600">
+              <p>
                 Análises especializadas em gols, escanteios, finalizações e cartões
               </p>
             </div>
-            <div className="flex items-center space-x-3">
+            <div className="header-actions">
               {/* Indicadores de Cache */}
-              <div className="flex items-center space-x-2 text-sm">
+              <div className="cache-indicators">
                 {cacheInfo.fixtures.fromCache && (
-                  <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full flex items-center">
+                  <span className="badge info">
                     📦 Cache
                   </span>
                 )}
                 {cacheInfo.predictions.fromCache && (
-                  <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full flex items-center">
+                  <span className="badge success">
                     📦 Cache
                   </span>
                 )}
@@ -481,57 +485,57 @@ const Dashboard = () => {
               <button
                 onClick={() => loadDashboardData(true)}
                 disabled={loading}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 flex items-center space-x-2"
+                className="btn-secondary"
               >
-                <FaEye className="text-sm" />
+                <FaEye className="btn-icon" />
                 <span>Atualizar</span>
               </button>
             </div>
           </div>
           
           {/* Informações de Cache */}
-          <div className="bg-gray-50 rounded-lg p-4 mb-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div className="flex items-center space-x-2">
-                <span className="text-gray-600">Fixtures:</span>
-                <span className={cacheInfo.fixtures.fromCache ? 'text-blue-600' : 'text-gray-800'}>
+          <div className="card">
+            <div className="cache-grid">
+              <div className="cache-item">
+                <span className="cache-label">Fixtures:</span>
+                <span className={cacheInfo.fixtures.fromCache ? 'badge info' : 'text-primary'}>
                   {cacheInfo.fixtures.fromCache ? '📦 Cache' : '🌐 API'}
                 </span>
                 {cacheInfo.fixtures.lastUpdate && (
-                  <span className="text-gray-500">
+                  <span className="cache-time">
                     ({new Date(cacheInfo.fixtures.lastUpdate).toLocaleTimeString('pt-BR')})
                   </span>
                 )}
               </div>
-              <div className="flex items-center space-x-2">
-                <span className="text-gray-600">Live:</span>
-                <span className={cacheInfo.live.fromCache ? 'text-blue-600' : 'text-gray-800'}>
+              <div className="cache-item">
+                <span className="cache-label">Live:</span>
+                <span className={cacheInfo.live.fromCache ? 'badge info' : 'text-primary'}>
                   {cacheInfo.live.fromCache ? '📦 Cache' : '🌐 API'}
                 </span>
                 {cacheInfo.live.lastUpdate && (
-                  <span className="text-gray-500">
+                  <span className="cache-time">
                     ({new Date(cacheInfo.live.lastUpdate).toLocaleTimeString('pt-BR')})
                   </span>
                 )}
               </div>
-              <div className="flex items-center space-x-2">
-                <span className="text-gray-600">Predictions:</span>
-                <span className={cacheInfo.predictions.fromCache ? 'text-green-600' : 'text-gray-800'}>
+              <div className="cache-item">
+                <span className="cache-label">Predictions:</span>
+                <span className={cacheInfo.predictions.fromCache ? 'badge success' : 'text-primary'}>
                   {cacheInfo.predictions.fromCache ? '📦 Cache' : '🌐 API'}
                 </span>
                 {cacheInfo.predictions.lastUpdate && (
-                  <span className="text-gray-500">
+                  <span className="cache-time">
                     ({new Date(cacheInfo.predictions.lastUpdate).toLocaleTimeString('pt-BR')})
                   </span>
                 )}
               </div>
-              <div className="flex items-center space-x-2">
-                <span className="text-gray-600">Live Pred:</span>
-                <span className={cacheInfo.livePredictions.fromCache ? 'text-green-600' : 'text-gray-800'}>
+              <div className="cache-item">
+                <span className="cache-label">Live Pred:</span>
+                <span className={cacheInfo.livePredictions.fromCache ? 'badge success' : 'text-primary'}>
                   {cacheInfo.livePredictions.fromCache ? '📦 Cache' : '🌐 API'}
                 </span>
                 {cacheInfo.livePredictions.lastUpdate && (
-                  <span className="text-gray-500">
+                  <span className="cache-time">
                     ({new Date(cacheInfo.livePredictions.lastUpdate).toLocaleTimeString('pt-BR')})
                   </span>
                 )}
@@ -541,75 +545,75 @@ const Dashboard = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <FaCalendar className="text-blue-600" />
+        <div className="dashboard-stats">
+          <div className="stat-card">
+            <div className="stat-content">
+              <div className="stat-icon blue">
+                <FaCalendar />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Jogos Hoje</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalFixtures}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-red-100 rounded-lg">
-                <FaFire className="text-red-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Ao Vivo</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.liveFixtures}</p>
+              <div className="stat-info">
+                <p className="stat-label">Jogos Hoje</p>
+                <p className="stat-value">{stats.totalFixtures}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <FaDice className="text-green-600" />
+          <div className="stat-card">
+            <div className="stat-content">
+              <div className="stat-icon danger">
+                <FaFire />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Análises Over/Under</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalPredictions}</p>
+              <div className="stat-info">
+                <p className="stat-label">Ao Vivo</p>
+                <p className="stat-value">{stats.liveFixtures}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-yellow-100 rounded-lg">
-                <FaEye className="text-yellow-600" />
+          <div className="stat-card">
+            <div className="stat-content">
+              <div className="stat-icon green">
+                <FaDice />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Alta Confiança</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.highConfidence}</p>
+              <div className="stat-info">
+                <p className="stat-label">Análises Over/Under</p>
+                <p className="stat-value">{stats.totalPredictions}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-content">
+              <div className="stat-icon gold">
+                <FaEye />
+              </div>
+              <div className="stat-info">
+                <p className="stat-label">Alta Confiança</p>
+                <p className="stat-value">{stats.highConfidence}</p>
               </div>
             </div>
           </div>
         </div>
 
         {/* Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="content-grid">
           {/* Live Fixtures */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900 flex items-center">
-                <FaFire className="mr-2 text-red-500" />
+          <div className="content-section">
+            <div className="section-header">
+              <h2 className="section-title">
+                <FaFire className="section-icon live" />
                 Jogos ao Vivo
               </h2>
-              <span className="text-sm text-gray-500">{liveFixtures.length} jogos</span>
+              <span className="section-count">{liveFixtures.length} jogos</span>
             </div>
             
             {liveFixtures.length === 0 ? (
-              <div className="bg-white rounded-lg shadow-sm p-6 text-center">
-                <FaClock className="mx-auto h-8 w-8 text-gray-400 mb-2" />
-                <p className="text-gray-600">Nenhum jogo ao vivo no momento</p>
+              <div className="card empty-state">
+                <FaClock className="empty-icon" />
+                <p className="empty-text">Nenhum jogo ao vivo no momento</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="cards-container">
                 {liveFixtures.slice(0, 5).map(fixture => 
                   renderFixtureCard(fixture, true)
                 ).filter(Boolean)}
@@ -618,22 +622,22 @@ const Dashboard = () => {
           </div>
 
           {/* Live Over/Under Analysis */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900 flex items-center">
-                <FaChartLine className="mr-2 text-blue-500" />
+          <div className="content-section">
+            <div className="section-header">
+              <h2 className="section-title">
+                <FaChartLine className="section-icon analysis" />
                 Análises Over/Under ao Vivo
               </h2>
-              <span className="text-sm text-gray-500">{livePredictions.length} análises</span>
+              <span className="section-count">{livePredictions.length} análises</span>
             </div>
             
             {livePredictions.length === 0 ? (
-              <div className="bg-white rounded-lg shadow-sm p-6 text-center">
-                <FaChartLine className="mx-auto h-8 w-8 text-gray-400 mb-2" />
-                <p className="text-gray-600">Nenhuma análise over/under ao vivo disponível</p>
+              <div className="card empty-state">
+                <FaChartLine className="empty-icon" />
+                <p className="empty-text">Nenhuma análise over/under ao vivo disponível</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="cards-container">
                 {livePredictions.slice(0, 5).map(prediction => 
                   renderOverUnderCard(prediction, true)
                 ).filter(Boolean)}
@@ -642,22 +646,22 @@ const Dashboard = () => {
           </div>
 
           {/* Today's Fixtures */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900 flex items-center">
-                <FaCalendar className="mr-2 text-green-500" />
+          <div className="content-section">
+            <div className="section-header">
+              <h2 className="section-title">
+                <FaCalendar className="section-icon fixtures" />
                 Jogos de Hoje
               </h2>
-              <span className="text-sm text-gray-500">{todayFixtures.length} jogos</span>
+              <span className="section-count">{todayFixtures.length} jogos</span>
             </div>
             
             {todayFixtures.length === 0 ? (
-              <div className="bg-white rounded-lg shadow-sm p-6 text-center">
-                <FaCalendar className="mx-auto h-8 w-8 text-gray-400 mb-2" />
-                <p className="text-gray-600">Nenhum jogo programado para hoje</p>
+              <div className="card empty-state">
+                <FaCalendar className="empty-icon" />
+                <p className="empty-text">Nenhum jogo programado para hoje</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="cards-container">
                 {todayFixtures.slice(0, 5).map(fixture => 
                   renderFixtureCard(fixture)
                 ).filter(Boolean)}
@@ -666,22 +670,22 @@ const Dashboard = () => {
           </div>
 
           {/* Today's Over/Under Analysis */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900 flex items-center">
-                <FaDice className="mr-2 text-purple-500" />
+          <div className="content-section">
+            <div className="section-header">
+              <h2 className="section-title">
+                <FaDice className="section-icon predictions" />
                 Análises Over/Under de Hoje
               </h2>
-              <span className="text-sm text-gray-500">{predictions.length} análises</span>
+              <span className="section-count">{predictions.length} análises</span>
             </div>
             
             {predictions.length === 0 ? (
-              <div className="bg-white rounded-lg shadow-sm p-6 text-center">
-                <FaDice className="mx-auto h-8 w-8 text-gray-400 mb-2" />
-                <p className="text-gray-600">Nenhuma análise over/under disponível para hoje</p>
+              <div className="card empty-state">
+                <FaDice className="empty-icon" />
+                <p className="empty-text">Nenhuma análise over/under disponível para hoje</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="cards-container">
                 {predictions.slice(0, 5).map(prediction => 
                   renderOverUnderCard(prediction)
                 ).filter(Boolean)}
@@ -691,10 +695,10 @@ const Dashboard = () => {
         </div>
 
         {/* Refresh Button */}
-        <div className="mt-8 text-center">
+        <div className="refresh-section">
           <button
             onClick={loadDashboardData}
-            className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+            className="btn-primary"
           >
             Atualizar Dashboard
           </button>

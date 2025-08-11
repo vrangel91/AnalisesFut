@@ -10,12 +10,11 @@ import Leagues from './pages/Leagues';
 import Teams from './pages/Teams';
 import CacheMonitor from './pages/CacheMonitor';
 import MyBets from './pages/MyBets';
-import './App.css';
 
 function App() {
   return (
     <Router>
-      <div className="App min-h-screen bg-slate-900">
+      <div className="App min-h-screen bg-slate-200">
         <Navbar />
         <main className="container mx-auto px-4 py-8">
           <Routes>

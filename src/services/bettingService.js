@@ -172,13 +172,14 @@ class BettingService {
         UPDATE user_bets 
         SET status = ?, result = ?, actual_result = ?, profit_loss = ?, updated_at = datetime('now')
         WHERE id = ?
-      `, [result, result, actualResult, profitLoss, betId], function(err) {
+      `, [result, result, actualResult, profitLoss, betId], (err) => {
         if (err) {
           console.error('Erro ao atualizar resultado:', err);
           reject(err);
         } else {
           console.log(`✅ Resultado atualizado: ${result}`);
-          this.updateBettingStats();
+          // Atualizar estatísticas após atualizar resultado
+          this.updateBettingStats().catch(console.error);
           resolve(this.changes);
         }
       });
