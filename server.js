@@ -7,6 +7,7 @@ const compression = require('compression');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const cron = require('node-cron');
+const fs = require('fs');
 require('dotenv').config({ path: './config.env' });
 
 // Importar rotas
@@ -63,10 +64,21 @@ const limiter = rateLimit({
 
 app.use('/api/', limiter);
 
+// Verificar se o diretório build existe
+const buildPath = path.join(__dirname, 'client/build');
+const buildExists = fs.existsSync(buildPath);
+
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'client/build')));
+
+// Servir arquivos estáticos apenas se o build existir
+if (buildExists) {
+  app.use(express.static(buildPath));
+  console.log('✅ Servindo arquivos estáticos do build de produção');
+} else {
+  console.log('⚠️  Diretório build não encontrado - modo desenvolvimento');
+}
 
 // Rotas da API
 app.use('/api/fixtures', fixturesRoutes);
@@ -90,7 +102,15 @@ app.get('/api/health', (req, res) => {
 
 // Rota para servir o frontend
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
+  if (buildExists) {
+    res.sendFile(path.join(buildPath, 'index.html'));
+  } else {
+    res.json({ 
+      message: 'Frontend não compilado. Execute "npm run build" no diretório client primeiro.',
+      development: true,
+      buildPath: buildPath
+    });
+  }
 });
 
 // Socket.IO para atualizações em tempo real

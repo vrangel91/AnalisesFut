@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { FaCalendar, FaClock, FaChartLine, FaDice, FaEye, FaInfoCircle, FaFire, FaFutbol, FaFlag, FaExclamationTriangle, FaBullseye } from 'react-icons/fa';
+import { FaCalendar, FaClock, FaChartLine, FaDice, FaEye, FaFire, FaFutbol, FaFlag, FaExclamationTriangle, FaBullseye } from 'react-icons/fa';
 import axios from 'axios';
-import '../styles/global.css';
-import './Dashboard.css';
+import './Dashboard.scss';
 
 const Dashboard = () => {
   const [todayFixtures, setTodayFixtures] = useState([]);
@@ -104,41 +103,13 @@ const Dashboard = () => {
     }
   };
 
-  const getConfidenceColor = (confidence) => {
-    switch (confidence) {
-      case 'alta': return 'badge success';
-      case 'média': return 'badge warning';
-      case 'baixa': return 'badge danger';
-      default: return 'badge info';
-    }
-  };
-
-  const getConfidenceIcon = (confidence) => {
-    switch (confidence) {
-      case 'alta': return '🎯';
-      case 'média': return '⚖️';
-      case 'baixa': return '⚠️';
-      default: return '❓';
-    }
-  };
-
   const getOverUnderIcon = (type) => {
     switch (type) {
-      case 'gols': return <FaFutbol className="text-blue" />;
-      case 'escanteios': return <FaFlag className="text-green" />;
-      case 'finalizações': return <FaBullseye className="text-gold" />;
-      case 'cartões': return <FaExclamationTriangle className="text-danger" />;
-      default: return <FaChartLine className="text-muted" />;
-    }
-  };
-
-  const getOverUnderColor = (type) => {
-    switch (type) {
-      case 'gols': return 'bg-blue-50 text-blue-800';
-      case 'escanteios': return 'bg-green-50 text-green-800';
-      case 'finalizações': return 'bg-purple-50 text-purple-800';
-      case 'cartões': return 'bg-red-50 text-red-800';
-      default: return 'bg-gray-50 text-gray-800';
+      case 'gols': return <FaFutbol className="icon" />;
+      case 'escanteios': return <FaFlag className="icon" />;
+      case 'finalizações': return <FaBullseye className="icon" />;
+      case 'cartões': return <FaExclamationTriangle className="icon" />;
+      default: return <FaChartLine className="icon" />;
     }
   };
 
@@ -155,7 +126,6 @@ const Dashboard = () => {
 
     // Análise de gols
     if (recommendation.includes('over') && recommendation.includes('gol')) {
-      // Extrair o número específico
       const match = recommendation.match(/over\s+(\d+\.?\d*)\s*gol/);
       const value = match ? match[1] : '2.5';
       analysis.push({
@@ -167,7 +137,6 @@ const Dashboard = () => {
       });
       console.log('✅ Adicionado Over gols:', value);
     } else if (recommendation.includes('under') && recommendation.includes('gol')) {
-      // Extrair o número específico
       const match = recommendation.match(/under\s+(\d+\.?\d*)\s*gol/);
       const value = match ? match[1] : '2.5';
       analysis.push({
@@ -265,7 +234,6 @@ const Dashboard = () => {
     if (analysis.length === 0 && prediction.confidence) {
       console.log('⚠️ Nenhuma análise específica encontrada, criando análise genérica');
       
-      // Análise genérica baseada na confiança
       if (prediction.confidence === 'alta') {
         analysis.push({
           type: 'gols',
@@ -312,45 +280,46 @@ const Dashboard = () => {
 
       const overUnderAnalysis = extractOverUnderAnalysis(prediction);
 
-      // Sempre mostrar o card, mesmo com análise genérica
       if (overUnderAnalysis.length === 0) {
         console.log('⚠️ Nenhuma análise encontrada para:', prediction.fixture?.teams?.home?.name, 'vs', prediction.fixture?.teams?.away?.name);
       }
 
       return (
-        <div key={fixture.fixture.id} className="card border-left-blue">
+        <div key={fixture.fixture.id} className="fixture-card">
           <div className="card-header">
-            <div className="card-content">
-              <div className="fixture-info">
-                <span className="league-name">{league.name}</span>
+            <div className="fixture-info">
+              <div className="league">
+                {league.name}
                 {isLive && (
                   <span className="live-badge">
                     AO VIVO
                   </span>
                 )}
               </div>
-              <h4 className="fixture-title">
+              <div className="teams">
                 {teams.home.name} vs {teams.away.name}
-              </h4>
-              <p className="fixture-time">
+              </div>
+              <div className="time">
                 {formatTime(fixtureData.date)}
-              </p>
+              </div>
             </div>
             
-            <div className={`confidence-badge ${getConfidenceColor(confidence)}`}>
-              <span>{getConfidenceIcon(confidence)}</span>
-              {confidence.toUpperCase()}
+            <div className="status-info">
+              <div className={`confidence-badge ${confidence}`}>
+                <span>{confidence === 'alta' ? '🎯' : confidence === 'média' ? '⚖️' : '⚠️'}</span>
+                {confidence.toUpperCase()}
+              </div>
             </div>
           </div>
 
-          <div className="analysis-content">
+          <div className="analysis-grid">
             {overUnderAnalysis.map((analysis, index) => (
-              <div key={index} className={`analysis-item ${getOverUnderColor(analysis.type)}`}>
+              <div key={index} className={`analysis-item ${analysis.type}`}>
                 <div className="analysis-header">
                   {getOverUnderIcon(analysis.type)}
-                  <span className="analysis-type">{analysis.type}</span>
+                  <span className="type">{analysis.type}</span>
                 </div>
-                <p className="analysis-prediction">{analysis.prediction}</p>
+                <div className="prediction">{analysis.prediction}</div>
               </div>
             ))}
           </div>
@@ -371,31 +340,31 @@ const Dashboard = () => {
       const { teams, league, fixture: fixtureData } = fixture;
 
       return (
-        <div key={fixture.fixture.id} className="card">
+        <div key={fixture.fixture.id} className="fixture-card">
           <div className="card-header">
-            <div className="card-content">
-              <div className="fixture-info">
-                <span className="league-name">{league.name}</span>
+            <div className="fixture-info">
+              <div className="league">
+                {league.name}
                 {isLive && (
                   <span className="live-badge">
                     AO VIVO
                   </span>
                 )}
               </div>
-              <h4 className="fixture-title">
+              <div className="teams">
                 {teams.home.name} vs {teams.away.name}
-              </h4>
-              <p className="fixture-time">
+              </div>
+              <div className="time">
                 {formatTime(fixtureData.date)}
-              </p>
+              </div>
             </div>
             
-            <div className="fixture-status">
-              <div className="status-text">
+            <div className="status-info">
+              <div className="status">
                 {fixtureData.status.short}
               </div>
               {fixtureData.status.elapsed && (
-                <div className="elapsed-time">
+                <div className="elapsed">
                   {fixtureData.status.elapsed}'
                 </div>
               )}
@@ -403,8 +372,8 @@ const Dashboard = () => {
           </div>
 
           {fixture.goals && (
-            <div className="goals-display">
-              <div className="goals-score">
+            <div className="score">
+              <div className="score-display">
                 {fixture.goals.home} - {fixture.goals.away}
               </div>
             </div>
@@ -419,9 +388,9 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <div className="loading-container">
-        <div className="loading-content">
-          <div className="loading-spinner"></div>
+      <div className="dashboard">
+        <div className="loading">
+          <div className="spinner"></div>
           <p className="loading-text">Carregando dashboard...</p>
         </div>
       </div>
@@ -430,22 +399,17 @@ const Dashboard = () => {
 
   if (error) {
     return (
-      <div className="page-container">
-        <div className="page-content">
-          <div className="error-container">
-            <div className="card">
-              <div className="error-content">
-                <FaExclamationTriangle className="error-icon" />
-                <h2 className="error-title">Erro ao carregar dados</h2>
-                <p className="error-message">{error}</p>
-                <button
-                  onClick={loadDashboardData}
-                  className="btn-primary"
-                >
-                  Tentar novamente
-                </button>
-              </div>
-            </div>
+      <div className="dashboard">
+        <div className="error">
+          <div className="error-card">
+            <div className="error-title">Erro ao carregar dados</div>
+            <div className="error-message">{error}</div>
+            <button
+              onClick={loadDashboardData}
+              className="retry-btn"
+            >
+              Tentar novamente
+            </button>
           </div>
         </div>
       </div>
@@ -453,30 +417,25 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="dashboard-container">
-      <div className="dashboard-content">
+    <div className="dashboard">
+      <div className="container">
         {/* Header */}
-        <div className="dashboard-header">
+        <div className="header">
           <div className="header-content">
-            <div className="header-title">
-              <h1>
-                <FaBullseye className="header-icon" />
-                Dashboard Over/Under
-              </h1>
-              <p>
-                Análises especializadas em gols, escanteios, finalizações e cartões
-              </p>
+            <div className="title-section">
+              <h1>🎯 Dashboard Over/Under</h1>
+              <p>Análises especializadas em gols, escanteios, finalizações e cartões</p>
             </div>
             <div className="header-actions">
               {/* Indicadores de Cache */}
               <div className="cache-indicators">
                 {cacheInfo.fixtures.fromCache && (
-                  <span className="badge info">
+                  <span className="cache-badge fixtures">
                     📦 Cache
                   </span>
                 )}
                 {cacheInfo.predictions.fromCache && (
-                  <span className="badge success">
+                  <span className="cache-badge predictions">
                     📦 Cache
                   </span>
                 )}
@@ -485,57 +444,57 @@ const Dashboard = () => {
               <button
                 onClick={() => loadDashboardData(true)}
                 disabled={loading}
-                className="btn-secondary"
+                className="refresh-btn"
               >
-                <FaEye className="btn-icon" />
+                <FaEye />
                 <span>Atualizar</span>
               </button>
             </div>
           </div>
           
           {/* Informações de Cache */}
-          <div className="card">
+          <div className="cache-info">
             <div className="cache-grid">
               <div className="cache-item">
-                <span className="cache-label">Fixtures:</span>
-                <span className={cacheInfo.fixtures.fromCache ? 'badge info' : 'text-primary'}>
+                <span className="label">Fixtures:</span>
+                <span className={`status ${cacheInfo.fixtures.fromCache ? 'cache' : 'api'}`}>
                   {cacheInfo.fixtures.fromCache ? '📦 Cache' : '🌐 API'}
                 </span>
                 {cacheInfo.fixtures.lastUpdate && (
-                  <span className="cache-time">
+                  <span className="timestamp">
                     ({new Date(cacheInfo.fixtures.lastUpdate).toLocaleTimeString('pt-BR')})
                   </span>
                 )}
               </div>
               <div className="cache-item">
-                <span className="cache-label">Live:</span>
-                <span className={cacheInfo.live.fromCache ? 'badge info' : 'text-primary'}>
+                <span className="label">Live:</span>
+                <span className={`status ${cacheInfo.live.fromCache ? 'cache' : 'api'}`}>
                   {cacheInfo.live.fromCache ? '📦 Cache' : '🌐 API'}
                 </span>
                 {cacheInfo.live.lastUpdate && (
-                  <span className="cache-time">
+                  <span className="timestamp">
                     ({new Date(cacheInfo.live.lastUpdate).toLocaleTimeString('pt-BR')})
                   </span>
                 )}
               </div>
               <div className="cache-item">
-                <span className="cache-label">Predictions:</span>
-                <span className={cacheInfo.predictions.fromCache ? 'badge success' : 'text-primary'}>
+                <span className="label">Predictions:</span>
+                <span className={`status ${cacheInfo.predictions.fromCache ? 'cache' : 'api'}`}>
                   {cacheInfo.predictions.fromCache ? '📦 Cache' : '🌐 API'}
                 </span>
                 {cacheInfo.predictions.lastUpdate && (
-                  <span className="cache-time">
+                  <span className="timestamp">
                     ({new Date(cacheInfo.predictions.lastUpdate).toLocaleTimeString('pt-BR')})
                   </span>
                 )}
               </div>
               <div className="cache-item">
-                <span className="cache-label">Live Pred:</span>
-                <span className={cacheInfo.livePredictions.fromCache ? 'badge success' : 'text-primary'}>
+                <span className="label">Live Pred:</span>
+                <span className={`status ${cacheInfo.livePredictions.fromCache ? 'cache' : 'api'}`}>
                   {cacheInfo.livePredictions.fromCache ? '📦 Cache' : '🌐 API'}
                 </span>
                 {cacheInfo.livePredictions.lastUpdate && (
-                  <span className="cache-time">
+                  <span className="timestamp">
                     ({new Date(cacheInfo.livePredictions.lastUpdate).toLocaleTimeString('pt-BR')})
                   </span>
                 )}
@@ -545,51 +504,51 @@ const Dashboard = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="dashboard-stats">
+        <div className="stats-grid">
           <div className="stat-card">
             <div className="stat-content">
-              <div className="stat-icon blue">
+              <div className="icon-wrapper blue">
                 <FaCalendar />
               </div>
               <div className="stat-info">
-                <p className="stat-label">Jogos Hoje</p>
-                <p className="stat-value">{stats.totalFixtures}</p>
+                <h3>Jogos Hoje</h3>
+                <div className="value">{stats.totalFixtures}</div>
               </div>
             </div>
           </div>
 
           <div className="stat-card">
             <div className="stat-content">
-              <div className="stat-icon danger">
+              <div className="icon-wrapper red">
                 <FaFire />
               </div>
               <div className="stat-info">
-                <p className="stat-label">Ao Vivo</p>
-                <p className="stat-value">{stats.liveFixtures}</p>
+                <h3>Ao Vivo</h3>
+                <div className="value">{stats.liveFixtures}</div>
               </div>
             </div>
           </div>
 
           <div className="stat-card">
             <div className="stat-content">
-              <div className="stat-icon green">
+              <div className="icon-wrapper green">
                 <FaDice />
               </div>
               <div className="stat-info">
-                <p className="stat-label">Análises Over/Under</p>
-                <p className="stat-value">{stats.totalPredictions}</p>
+                <h3>Análises Over/Under</h3>
+                <div className="value">{stats.totalPredictions}</div>
               </div>
             </div>
           </div>
 
           <div className="stat-card">
             <div className="stat-content">
-              <div className="stat-icon gold">
+              <div className="icon-wrapper yellow">
                 <FaEye />
               </div>
               <div className="stat-info">
-                <p className="stat-label">Alta Confiança</p>
-                <p className="stat-value">{stats.highConfidence}</p>
+                <h3>Alta Confiança</h3>
+                <div className="value">{stats.highConfidence}</div>
               </div>
             </div>
           </div>
@@ -598,22 +557,22 @@ const Dashboard = () => {
         {/* Content Grid */}
         <div className="content-grid">
           {/* Live Fixtures */}
-          <div className="content-section">
+          <div className="section-card">
             <div className="section-header">
-              <h2 className="section-title">
-                <FaFire className="section-icon live" />
+              <h2>
+                <FaFire className="icon live" />
                 Jogos ao Vivo
               </h2>
-              <span className="section-count">{liveFixtures.length} jogos</span>
+              <span className="count">{liveFixtures.length} jogos</span>
             </div>
             
             {liveFixtures.length === 0 ? (
-              <div className="card empty-state">
-                <FaClock className="empty-icon" />
-                <p className="empty-text">Nenhum jogo ao vivo no momento</p>
+              <div className="empty-state">
+                <FaClock className="icon" />
+                <p>Nenhum jogo ao vivo no momento</p>
               </div>
             ) : (
-              <div className="cards-container">
+              <div className="items-grid">
                 {liveFixtures.slice(0, 5).map(fixture => 
                   renderFixtureCard(fixture, true)
                 ).filter(Boolean)}
@@ -622,22 +581,22 @@ const Dashboard = () => {
           </div>
 
           {/* Live Over/Under Analysis */}
-          <div className="content-section">
+          <div className="section-card">
             <div className="section-header">
-              <h2 className="section-title">
-                <FaChartLine className="section-icon analysis" />
+              <h2>
+                <FaChartLine className="icon analysis" />
                 Análises Over/Under ao Vivo
               </h2>
-              <span className="section-count">{livePredictions.length} análises</span>
+              <span className="count">{livePredictions.length} análises</span>
             </div>
             
             {livePredictions.length === 0 ? (
-              <div className="card empty-state">
-                <FaChartLine className="empty-icon" />
-                <p className="empty-text">Nenhuma análise over/under ao vivo disponível</p>
+              <div className="empty-state">
+                <FaChartLine className="icon" />
+                <p>Nenhuma análise over/under ao vivo disponível</p>
               </div>
             ) : (
-              <div className="cards-container">
+              <div className="items-grid">
                 {livePredictions.slice(0, 5).map(prediction => 
                   renderOverUnderCard(prediction, true)
                 ).filter(Boolean)}
@@ -646,22 +605,22 @@ const Dashboard = () => {
           </div>
 
           {/* Today's Fixtures */}
-          <div className="content-section">
+          <div className="section-card">
             <div className="section-header">
-              <h2 className="section-title">
-                <FaCalendar className="section-icon fixtures" />
+              <h2>
+                <FaCalendar className="icon calendar" />
                 Jogos de Hoje
               </h2>
-              <span className="section-count">{todayFixtures.length} jogos</span>
+              <span className="count">{todayFixtures.length} jogos</span>
             </div>
             
             {todayFixtures.length === 0 ? (
-              <div className="card empty-state">
-                <FaCalendar className="empty-icon" />
-                <p className="empty-text">Nenhum jogo programado para hoje</p>
+              <div className="empty-state">
+                <FaCalendar className="icon" />
+                <p>Nenhum jogo programado para hoje</p>
               </div>
             ) : (
-              <div className="cards-container">
+              <div className="items-grid">
                 {todayFixtures.slice(0, 5).map(fixture => 
                   renderFixtureCard(fixture)
                 ).filter(Boolean)}
@@ -670,22 +629,22 @@ const Dashboard = () => {
           </div>
 
           {/* Today's Over/Under Analysis */}
-          <div className="content-section">
+          <div className="section-card">
             <div className="section-header">
-              <h2 className="section-title">
-                <FaDice className="section-icon predictions" />
+              <h2>
+                <FaDice className="icon dice" />
                 Análises Over/Under de Hoje
               </h2>
-              <span className="section-count">{predictions.length} análises</span>
+              <span className="count">{predictions.length} análises</span>
             </div>
             
             {predictions.length === 0 ? (
-              <div className="card empty-state">
-                <FaDice className="empty-icon" />
-                <p className="empty-text">Nenhuma análise over/under disponível para hoje</p>
+              <div className="empty-state">
+                <FaDice className="icon" />
+                <p>Nenhuma análise over/under disponível para hoje</p>
               </div>
             ) : (
-              <div className="cards-container">
+              <div className="items-grid">
                 {predictions.slice(0, 5).map(prediction => 
                   renderOverUnderCard(prediction)
                 ).filter(Boolean)}
@@ -698,7 +657,7 @@ const Dashboard = () => {
         <div className="refresh-section">
           <button
             onClick={loadDashboardData}
-            className="btn-primary"
+            className="refresh-btn"
           >
             Atualizar Dashboard
           </button>

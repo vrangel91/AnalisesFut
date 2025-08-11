@@ -12,6 +12,9 @@ class BettingService {
   // Adicionar nova aposta
   async addBet(betData) {
     return new Promise((resolve, reject) => {
+      // Armazenar referência para 'this' para usar no callback
+      const self = this;
+      
       const {
         fixture_id,
         home_team,
@@ -58,7 +61,7 @@ class BettingService {
           } else {
             console.log(`✅ Aposta adicionada: ${home_team} vs ${away_team}`);
             // Atualizar estatísticas após adicionar aposta
-            this.updateBettingStats().catch(console.error);
+            self.updateBettingStats().catch(console.error);
             resolve(this.lastID);
           }
         }
@@ -168,18 +171,21 @@ class BettingService {
   // Atualizar resultado de uma aposta
   async updateBetResult(betId, result, actualResult, profitLoss) {
     return new Promise((resolve, reject) => {
+      // Armazenar referência para 'this' para usar no callback
+      const self = this;
+      
       this.db.run(`
         UPDATE user_bets 
         SET status = ?, result = ?, actual_result = ?, profit_loss = ?, updated_at = datetime('now')
         WHERE id = ?
-      `, [result, result, actualResult, profitLoss, betId], (err) => {
+      `, [result, result, actualResult, profitLoss, betId], function(err) {
         if (err) {
           console.error('Erro ao atualizar resultado:', err);
           reject(err);
         } else {
           console.log(`✅ Resultado atualizado: ${result}`);
           // Atualizar estatísticas após atualizar resultado
-          this.updateBettingStats().catch(console.error);
+          self.updateBettingStats().catch(console.error);
           resolve(this.changes);
         }
       });
@@ -497,6 +503,9 @@ class BettingService {
   // Deletar aposta
   async deleteBet(betId) {
     return new Promise((resolve, reject) => {
+      // Armazenar referência para 'this' para usar no callback
+      const self = this;
+      
       this.db.run(`
         DELETE FROM user_bets WHERE id = ?
       `, [betId], (err) => {
@@ -506,7 +515,7 @@ class BettingService {
         } else {
           console.log(`✅ Aposta deletada: ID ${betId}`);
           // Atualizar estatísticas após deletar aposta
-          this.updateBettingStats().catch(console.error);
+          self.updateBettingStats().catch(console.error);
           resolve(this.changes);
         }
       });
