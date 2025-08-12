@@ -195,46 +195,91 @@ class BettingService {
   // Verificar e atualizar resultados de apostas pendentes
   async checkPendingResults() {
     try {
-      const pendingBets = await this.getBetsByStatus('pending');
-      let updatedCount = 0;
+      console.log('🚀 Iniciando verificação de resultados pendentes...');
       
+      const pendingBets = await this.getBetsByStatus('pending');
       console.log(`🔍 Verificando ${pendingBets.length} apostas pendentes...`);
+      
+      if (pendingBets.length === 0) {
+        console.log('✅ Nenhuma aposta pendente para verificar');
+        return;
+      }
+      
+      let updatedCount = 0;
+      let errorCount = 0;
+      let skippedCount = 0;
       
       for (const bet of pendingBets) {
         try {
+          console.log(`\n📋 Verificando aposta ID ${bet.id}: ${bet.home_team} vs ${bet.away_team}`);
+          console.log(`   Fixture ID: ${bet.fixture_id}, Mercado: ${bet.market_type}, Predição: ${bet.prediction}`);
+          
+          // Se não tem fixture_id, tentar buscar por nome dos times
+          if (!bet.fixture_id || bet.fixture_id === '') {
+            console.log(`   ⚠️  Aposta sem fixture_id, tentando buscar por nome dos times...`);
+            
+            // Buscar fixture por nome dos times
+            const fixtureId = await this.findFixtureByTeamNames(bet.home_team, bet.away_team, bet.league_name);
+            
+            if (fixtureId) {
+              console.log(`   🔍 Fixture encontrada por nome dos times: ${fixtureId}`);
+              // Atualizar a aposta com o fixture_id encontrado
+              await this.updateBetFixtureId(bet.id, fixtureId);
+              bet.fixture_id = fixtureId;
+            } else {
+              console.log(`   ❌ Não foi possível encontrar fixture para: ${bet.home_team} vs ${bet.away_team}`);
+              skippedCount++;
+              continue;
+            }
+          }
+          
           // Primeiro tentar buscar do banco local
           let matchResult = await this.getMatchResult(bet.fixture_id);
           
-          // Se não encontrou no banco, buscar da API
-          if (!matchResult) {
-            console.log(`🌐 Buscando resultado da API para fixture ${bet.fixture_id}...`);
+          if (matchResult) {
+            console.log(`   📊 Resultado encontrado no banco local: ${matchResult.home_score}-${matchResult.away_score}`);
+          } else {
+            console.log(`   🌐 Resultado não encontrado no banco local, buscando da API...`);
+            
+            // Se não encontrou no banco, buscar da API
             matchResult = await this.fetchMatchResultFromAPI(bet.fixture_id);
             
             // Se encontrou na API, salvar no banco
             if (matchResult) {
+              console.log(`   💾 Salvando resultado da API no banco local...`);
               await this.saveMatchResult(matchResult);
             }
           }
           
           // Se tem resultado e o jogo terminou, calcular resultado
           if (matchResult && matchResult.match_status === 'finished') {
+            console.log(`   ✅ Jogo finalizado, calculando resultado da aposta...`);
             const result = this.calculateBetResult(bet, matchResult);
             await this.updateBetResult(bet.id, result.status, result.actualResult, result.profitLoss);
             updatedCount++;
-            console.log(`✅ Aposta ${bet.id} atualizada: ${result.status} - ${result.actualResult}`);
+            console.log(`   🎯 Aposta ${bet.id} atualizada: ${result.status} - ${result.actualResult}`);
           } else if (matchResult) {
-            console.log(`⏳ Jogo ${bet.fixture_id} ainda não terminou (status: ${matchResult.match_status})`);
+            console.log(`   ⏳ Jogo ${bet.fixture_id} ainda não terminou (status: ${matchResult.match_status})`);
           } else {
-            console.log(`❌ Não foi possível obter resultado para fixture ${bet.fixture_id}`);
+            console.log(`   ❌ Não foi possível obter resultado para fixture ${bet.fixture_id}`);
+            errorCount++;
           }
         } catch (error) {
-          console.error(`Erro ao verificar aposta ${bet.id}:`, error.message);
+          console.error(`   💥 Erro ao verificar aposta ${bet.id}:`, error.message);
+          errorCount++;
         }
       }
       
+      console.log(`\n📊 Resumo da verificação:`);
+      console.log(`   ✅ Apostas atualizadas: ${updatedCount}`);
+      console.log(`   ❌ Erros: ${errorCount}`);
+      console.log(`   ⏭️  Puladas (sem fixture): ${skippedCount}`);
+      console.log(`   📋 Total verificadas: ${pendingBets.length}`);
       console.log(`✅ Verificação de resultados concluída: ${updatedCount} apostas atualizadas`);
+      
     } catch (error) {
-      console.error('Erro ao verificar resultados:', error);
+      console.error('💥 Erro geral ao verificar resultados:', error);
+      throw error; // Re-throw para que a rota possa tratar o erro
     }
   }
 
@@ -352,15 +397,33 @@ class BettingService {
   // Buscar resultado de uma partida da API
   async fetchMatchResultFromAPI(fixtureId) {
     try {
-      console.log(`🌐 Fazendo requisição para API: /fixtures/id/${fixtureId}`);
+      console.log(`   🌐 Fazendo requisição para API: /fixtures/id/${fixtureId}`);
+      
+      if (!fixtureId || fixtureId === '') {
+        console.log(`   ❌ Fixture ID inválido: "${fixtureId}"`);
+        return null;
+      }
+      
       const fixtureData = await cachedApiService.getFixtureById(fixtureId);
       
-      if (!fixtureData || !fixtureData.response || fixtureData.response.length === 0) {
-        console.log(`❌ Fixture ${fixtureId} não encontrada na API`);
+      if (!fixtureData) {
+        console.log(`   ❌ Resposta vazia da API para fixture ${fixtureId}`);
+        return null;
+      }
+      
+      if (!fixtureData.response || fixtureData.response.length === 0) {
+        console.log(`   ❌ Fixture ${fixtureId} não encontrada na API (response vazio)`);
         return null;
       }
 
       const fixture = fixtureData.response[0];
+      console.log(`   📊 Dados da fixture recebidos:`, {
+        id: fixture.fixture?.id,
+        status: fixture.fixture?.status?.short,
+        date: fixture.fixture?.date,
+        teams: fixture.teams ? `${fixture.teams.home?.name} vs ${fixture.teams.away?.name}` : 'N/A'
+      });
+      
       const { fixture: fixtureInfo, teams, goals, score } = fixture;
       
       // Verificar se o jogo terminou
@@ -370,7 +433,7 @@ class BettingService {
                         fixtureInfo.status.short === 'HT';
 
       if (!isFinished) {
-        console.log(`⏳ Jogo ${fixtureId} ainda não terminou (status: ${fixtureInfo.status.short})`);
+        console.log(`   ⏳ Jogo ${fixtureId} ainda não terminou (status: ${fixtureInfo.status.short})`);
         return null;
       }
 
@@ -391,10 +454,11 @@ class BettingService {
         venue: fixture.fixture?.venue?.name || 'Unknown'
       };
 
-      console.log(`✅ Resultado obtido da API: ${homeScore}-${awayScore} (${totalGoals} gols)`);
+      console.log(`   ✅ Resultado obtido da API: ${homeScore}-${awayScore} (${totalGoals} gols)`);
       return matchResult;
+      
     } catch (error) {
-      console.error(`Erro ao buscar resultado da API para fixture ${fixtureId}:`, error.message);
+      console.error(`   💥 Erro ao buscar resultado da API para fixture ${fixtureId}:`, error.message);
       return null;
     }
   }
@@ -530,6 +594,88 @@ class BettingService {
       } else {
         console.log('🔒 Conexão com banco de apostas fechada');
       }
+    });
+  }
+
+  // Buscar fixture por nome dos times
+  async findFixtureByTeamNames(homeTeam, awayTeam, leagueName) {
+    try {
+      console.log(`   🔍 Buscando fixture para: ${homeTeam} vs ${awayTeam} (${leagueName})`);
+      
+      // Buscar fixtures recentes (últimos 30 dias)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const dateFrom = thirtyDaysAgo.toISOString().split('T')[0];
+      
+      const fixtures = await cachedApiService.getFixtures({ date: dateFrom });
+      
+      if (!fixtures || !fixtures.response) {
+        console.log(`   ❌ Nenhuma fixture encontrada para a data ${dateFrom}`);
+        return null;
+      }
+      
+      // Procurar por fixture que corresponda aos times
+      for (const fixture of fixtures.response) {
+        const fixtureHomeTeam = fixture.teams?.home?.name?.toLowerCase();
+        const fixtureAwayTeam = fixture.teams?.away?.name?.toLowerCase();
+        const fixtureLeague = fixture.league?.name?.toLowerCase();
+        
+        const searchHomeTeam = homeTeam.toLowerCase();
+        const searchAwayTeam = awayTeam.toLowerCase();
+        const searchLeague = leagueName.toLowerCase();
+        
+        // Verificar se os nomes dos times correspondem (parcial match)
+        const homeMatch = fixtureHomeTeam && (
+          fixtureHomeTeam.includes(searchHomeTeam) || 
+          searchHomeTeam.includes(fixtureHomeTeam)
+        );
+        
+        const awayMatch = fixtureAwayTeam && (
+          fixtureAwayTeam.includes(searchAwayTeam) || 
+          searchAwayTeam.includes(fixtureAwayTeam)
+        );
+        
+        // Verificar se a liga corresponde (parcial match)
+        const leagueMatch = fixtureLeague && (
+          fixtureLeague.includes(searchLeague) || 
+          searchLeague.includes(fixtureLeague)
+        );
+        
+        if (homeMatch && awayMatch && leagueMatch) {
+          console.log(`   ✅ Fixture encontrada: ID ${fixture.fixture.id} - ${fixture.teams.home.name} vs ${fixture.teams.away.name}`);
+          return fixture.fixture.id;
+        }
+      }
+      
+      console.log(`   ❌ Nenhuma fixture correspondente encontrada`);
+      return null;
+      
+    } catch (error) {
+      console.error(`   💥 Erro ao buscar fixture por nome dos times:`, error.message);
+      return null;
+    }
+  }
+  
+  // Atualizar fixture_id de uma aposta
+  async updateBetFixtureId(betId, fixtureId) {
+    return new Promise((resolve, reject) => {
+      const stmt = this.db.prepare(`
+        UPDATE user_bets 
+        SET fixture_id = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `);
+      
+      stmt.run(fixtureId, betId, (err) => {
+        if (err) {
+          console.error(`   ❌ Erro ao atualizar fixture_id da aposta ${betId}:`, err);
+          reject(err);
+        } else {
+          console.log(`   ✅ Fixture_id atualizado para aposta ${betId}: ${fixtureId}`);
+          resolve();
+        }
+      });
+      
+      stmt.finalize();
     });
   }
 }

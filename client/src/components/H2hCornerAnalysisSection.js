@@ -47,7 +47,17 @@ const H2hCornerAnalysisSection = ({
   }
 
   const { h2hAnalysis } = analysis;
-  if (!h2hAnalysis) return null;
+  if (!h2hAnalysis) {
+    return (
+      <div className="bg-purple-50 p-3 rounded-lg">
+        <div className="text-center text-purple-600">
+          <span className="text-lg">📊</span>
+          <p className="mt-2">Análise H2H não disponível</p>
+          <p className="text-sm">Clique no botão para carregar</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-purple-50 p-3 rounded-lg">
@@ -82,47 +92,90 @@ const H2hCornerAnalysisSection = ({
         <div className="text-center p-2 bg-white rounded-lg border border-purple-200">
           <div className="text-xs text-purple-600 mb-1">Média Escanteios</div>
           <div className="text-lg font-bold text-purple-700">
-            {h2hAnalysis.cornerStats.averageCorners.toFixed(1)}
+            {h2hAnalysis.cornerStats?.averageCorners ? h2hAnalysis.cornerStats.averageCorners.toFixed(1) : 'N/A'}
           </div>
         </div>
       </div>
+
+      {/* Aviso sobre dados de corner kicks */}
+      {(!h2hAnalysis.cornerStats || !h2hAnalysis.cornerStats.averageCorners) && (
+        <div className="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <div className="text-sm text-yellow-700">
+            ⚠️ Dados de corner kicks não disponíveis para esta fixture
+          </div>
+        </div>
+      )}
 
       {/* Estatísticas Over/Under */}
-      <div className="mb-3">
-        <div className="text-sm font-medium text-purple-700 mb-2">📈 Estatísticas Over/Under:</div>
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <div className="bg-white p-2 rounded border border-purple-200">
-            <div className="text-purple-600 font-medium">Over 8.5:</div>
-            <div className="text-purple-800">{h2hAnalysis.cornerStats.overUnder.over85}/{h2hAnalysis.totalMatches}</div>
-          </div>
-          <div className="bg-white p-2 rounded border border-purple-200">
-            <div className="text-purple-600 font-medium">Over 7.5:</div>
-            <div className="text-purple-800">{h2hAnalysis.cornerStats.overUnder.over75}/{h2hAnalysis.totalMatches}</div>
-          </div>
-          <div className="bg-white p-2 rounded border border-purple-200">
-            <div className="text-purple-600 font-medium">Over 6.5:</div>
-            <div className="text-purple-800">{h2hAnalysis.cornerStats.overUnder.over65}/{h2hAnalysis.totalMatches}</div>
-          </div>
-          <div className="bg-white p-2 rounded border border-purple-200">
-            <div className="text-purple-600 font-medium">Over 5.5:</div>
-            <div className="text-purple-800">{h2hAnalysis.cornerStats.overUnder.over55}/{h2hAnalysis.totalMatches}</div>
+      {h2hAnalysis.cornerStats?.overUnder ? (
+        <div className="mb-3">
+          <div className="text-sm font-medium text-purple-700 mb-2">📈 Estatísticas Over/Under:</div>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="bg-white p-2 rounded border border-purple-200">
+              <div className="text-purple-600 font-medium">Over 8.5:</div>
+              <div className="text-purple-800">{h2hAnalysis.cornerStats.overUnder.over85 || 0}/{h2hAnalysis.totalMatches}</div>
+            </div>
+            <div className="bg-white p-2 rounded border border-purple-200">
+              <div className="text-purple-600 font-medium">Over 7.5:</div>
+              <div className="text-purple-800">{h2hAnalysis.cornerStats.overUnder.over75 || 0}/{h2hAnalysis.totalMatches}</div>
+            </div>
+            <div className="bg-white p-2 rounded border border-purple-200">
+              <div className="text-purple-600 font-medium">Over 6.5:</div>
+              <div className="text-purple-800">{h2hAnalysis.cornerStats.overUnder.over65 || 0}/{h2hAnalysis.totalMatches}</div>
+            </div>
+            <div className="bg-white p-2 rounded border border-purple-200">
+              <div className="text-purple-600 font-medium">Over 5.5:</div>
+              <div className="text-purple-800">{h2hAnalysis.cornerStats.overUnder.over55 || 0}/{h2hAnalysis.totalMatches}</div>
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <div className="text-sm text-yellow-700">
+            ⚠️ Dados de corner kicks não disponíveis na API H2H
+          </div>
+        </div>
+      )}
 
       {/* Distribuição */}
-      <div className="mb-3">
-        <div className="text-sm font-medium text-purple-700 mb-2">⚖️ Distribuição de Escanteios:</div>
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <div className="bg-white p-2 rounded border border-purple-200">
-            <div className="text-purple-600 font-medium">Equilibrado:</div>
-            <div className="text-purple-800">{h2hAnalysis.cornerStats.distribution.balanced + h2hAnalysis.cornerStats.distribution.veryBalanced}/{h2hAnalysis.totalMatches}</div>
-          </div>
-          <div className="bg-white p-2 rounded border border-purple-200">
-            <div className="text-purple-600 font-medium">Casa Domina:</div>
-            <div className="text-purple-800">{h2hAnalysis.cornerStats.distribution.homeDominant}/{h2hAnalysis.totalMatches}</div>
+      {h2hAnalysis.cornerStats?.distribution ? (
+        <div className="mb-3">
+          <div className="text-sm font-medium text-purple-700 mb-2">⚖️ Distribuição de Escanteios:</div>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="bg-white p-2 rounded border border-purple-200">
+              <div className="text-purple-600 font-medium">Equilibrado:</div>
+              <div className="text-purple-800">{(h2hAnalysis.cornerStats.distribution.balanced || 0) + (h2hAnalysis.cornerStats.distribution.veryBalanced || 0)}/{h2hAnalysis.totalMatches}</div>
+            </div>
+            <div className="bg-white p-2 rounded border border-purple-200">
+              <div className="text-purple-600 font-medium">Casa Domina:</div>
+              <div className="text-purple-800">{h2hAnalysis.cornerStats.distribution.homeDominant || 0}/{h2hAnalysis.totalMatches}</div>
+            </div>
           </div>
         </div>
+      ) : null}
+
+      {/* Informações H2H Básicas */}
+      <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="text-sm font-medium text-blue-700 mb-2">📊 Estatísticas H2H Básicas:</div>
+        <div className="grid grid-cols-3 gap-2 text-xs">
+          <div className="bg-white p-2 rounded border border-blue-200 text-center">
+            <div className="text-blue-600 font-medium">Vitórias Casa</div>
+            <div className="text-blue-800 font-bold">{h2hAnalysis.h2hAnalysis?.homeWins || 0}</div>
+          </div>
+          <div className="bg-white p-2 rounded border border-blue-200 text-center">
+            <div className="text-blue-600 font-medium">Vitórias Fora</div>
+            <div className="text-blue-800 font-bold">{h2hAnalysis.h2hAnalysis?.awayWins || 0}</div>
+          </div>
+          <div className="bg-white p-2 rounded border border-blue-200 text-center">
+            <div className="text-blue-600 font-medium">Empates</div>
+            <div className="text-blue-800 font-bold">{h2hAnalysis.h2hAnalysis?.draws || 0}</div>
+          </div>
+        </div>
+        {h2hAnalysis.h2hAnalysis?.averageGoals && (
+          <div className="mt-2 text-center">
+            <div className="text-xs text-blue-600">Média de Gols: <span className="font-bold text-blue-800">{h2hAnalysis.h2hAnalysis.averageGoals.toFixed(1)}</span></div>
+          </div>
+        )}
       </div>
 
       {/* Recomendações */}

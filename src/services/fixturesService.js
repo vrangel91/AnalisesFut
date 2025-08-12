@@ -186,7 +186,7 @@ class FixturesService {
    * Verifica se a fixture está por vir
    */
   isFixtureUpcoming(status) {
-    return status && ['NS', 'TBD', 'DELAYED', '1H'].includes(status);
+    return status && ['NS', 'TBD', 'DELAYED'].includes(status);
   }
 
   /**

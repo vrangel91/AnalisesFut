@@ -25,6 +25,8 @@ const MyBets = () => {
   const [betToDelete, setBetToDelete] = useState(null);
   const [deleteCountdown, setDeleteCountdown] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isCheckingResults, setIsCheckingResults] = useState(false);
+  const [checkResultsMessage, setCheckResultsMessage] = useState('');
 
   // Estados para nova aposta
   const [newBet, setNewBet] = useState({
@@ -32,7 +34,7 @@ const MyBets = () => {
     home_team: '',
     away_team: '',
     league_name: '',
-    market_type: 'Over/Under',
+    market_type: 'Corner Kicks',
     prediction: '',
     confidence: 'alta',
     stake: 0,
@@ -73,6 +75,19 @@ const MyBets = () => {
   };
 
   const addBet = async () => {
+    // Validação dos campos obrigatórios
+    if (!newBet.home_team || !newBet.away_team || !newBet.league_name || 
+        !newBet.prediction || !newBet.stake || !newBet.odds) {
+      alert('Por favor, preencha todos os campos obrigatórios!');
+      return;
+    }
+
+    // Validação de valores numéricos
+    if (newBet.stake <= 0 || newBet.odds <= 1) {
+      alert('Stake deve ser maior que 0 e Odds deve ser maior que 1!');
+      return;
+    }
+
     try {
       const response = await fetch('/api/bets', {
         method: 'POST',
@@ -90,7 +105,7 @@ const MyBets = () => {
           home_team: '',
           away_team: '',
           league_name: '',
-          market_type: 'Over/Under',
+          market_type: 'Corner Kicks',
           prediction: '',
           confidence: 'alta',
           stake: 0,
@@ -100,9 +115,13 @@ const MyBets = () => {
         });
         fetchBets();
         fetchStats();
+        alert('Aposta adicionada com sucesso!');
+      } else {
+        alert('Erro ao adicionar aposta: ' + (data.message || 'Erro desconhecido'));
       }
     } catch (error) {
       console.error('Erro ao adicionar aposta:', error);
+      alert('Erro ao adicionar aposta. Tente novamente.');
     }
   };
 
@@ -165,18 +184,41 @@ const MyBets = () => {
 
   const checkResults = async () => {
     try {
+      console.log('🔄 Iniciando verificação de resultados...');
+      setIsCheckingResults(true);
+      setCheckResultsMessage('Iniciando verificação...');
+      
       const response = await fetch('/api/bets/check-results', {
         method: 'POST',
       });
       
+      console.log('📡 Resposta da API:', response.status, response.statusText);
+      setCheckResultsMessage('Processando resposta...');
+      
       const data = await response.json();
+      console.log('📊 Dados da resposta:', data);
+      
       if (data.success) {
-        fetchBets();
-        fetchStats();
-        alert('Verificação de resultados concluída!');
+        console.log('✅ Verificação concluída com sucesso');
+        setCheckResultsMessage('Atualizando dados...');
+        await fetchBets();
+        await fetchStats();
+        setCheckResultsMessage('Verificação concluída com sucesso!');
+        setTimeout(() => setCheckResultsMessage(''), 3000);
+        alert(`Verificação de resultados concluída! ${data.message || ''}`);
+      } else {
+        console.error('❌ Erro na verificação:', data.error || data.message);
+        setCheckResultsMessage(`Erro: ${data.error || data.message || 'Erro desconhecido'}`);
+        setTimeout(() => setCheckResultsMessage(''), 5000);
+        alert(`Erro na verificação: ${data.error || data.message || 'Erro desconhecido'}`);
       }
     } catch (error) {
-      console.error('Erro ao verificar resultados:', error);
+      console.error('💥 Erro ao verificar resultados:', error);
+      setCheckResultsMessage(`Erro: ${error.message}`);
+      setTimeout(() => setCheckResultsMessage(''), 5000);
+      alert(`Erro ao verificar resultados: ${error.message}`);
+    } finally {
+      setIsCheckingResults(false);
     }
   };
 
@@ -213,10 +255,25 @@ const MyBets = () => {
               <button
                 onClick={checkResults}
                 className="btn btn-primary"
+                disabled={isCheckingResults}
               >
-                <FaSync />
-                Verificar Resultados
+                {isCheckingResults ? (
+                  <>
+                    <div className="spinner-small"></div>
+                    Verificando...
+                  </>
+                ) : (
+                  <>
+                    <FaSync />
+                    Verificar Resultados
+                  </>
+                )}
               </button>
+              {checkResultsMessage && (
+                <div className="check-results-message">
+                  {checkResultsMessage}
+                </div>
+              )}
               <button
                 onClick={() => setShowAddModal(true)}
                 className="btn btn-success"
@@ -412,28 +469,32 @@ const MyBets = () => {
           <div className="modal-overlay">
             <div className="modal">
               <h3>Adicionar Nova Aposta</h3>
+              <p className="text-sm text-gray-600 mb-4">* Campos obrigatórios</p>
               <div className="form-group">
-                <label>Time Casa</label>
+                <label>Time Casa *</label>
                 <input
                   type="text"
                   value={newBet.home_team}
                   onChange={(e) => setNewBet({...newBet, home_team: e.target.value})}
+                  required
                 />
               </div>
               <div className="form-group">
-                <label>Time Visitante</label>
+                <label>Time Visitante *</label>
                 <input
                   type="text"
                   value={newBet.away_team}
                   onChange={(e) => setNewBet({...newBet, away_team: e.target.value})}
+                  required
                 />
               </div>
               <div className="form-group">
-                <label>Liga</label>
+                <label>Liga *</label>
                 <input
                   type="text"
                   value={newBet.league_name}
                   onChange={(e) => setNewBet({...newBet, league_name: e.target.value})}
+                  required
                 />
               </div>
               <div className="form-group">
@@ -442,21 +503,21 @@ const MyBets = () => {
                   value={newBet.market_type}
                   onChange={(e) => setNewBet({...newBet, market_type: e.target.value})}
                 >
-                  <option value="Over Gols">Over/Under</option>
-                  <option value="Under Gols">Over/Under</option>
+                  <option value="Corner Kicks">Corner Kicks</option>
+                  <option value="Goals">Goals</option>
                   <option value="Over/Under">Over/Under</option>
                   <option value="Both Teams Score">Both Teams Score</option>
                   <option value="Match Winner">Match Winner</option>
-                  <option value="Goals">Goals</option>
                 </select>
               </div>
               <div className="form-group">
-                <label>Predição</label>
+                <label>Predição *</label>
                 <input
                   type="text"
                   value={newBet.prediction}
                   onChange={(e) => setNewBet({...newBet, prediction: e.target.value})}
-                  placeholder="Ex: Over 2.5"
+                  placeholder="Ex: Over 6.5 corner kicks"
+                  required
                 />
               </div>
               <div className="form-group">
@@ -471,20 +532,25 @@ const MyBets = () => {
                 </select>
               </div>
               <div className="form-group">
-                <label>Stake (R$)</label>
+                <label>Stake (R$) *</label>
                 <input
                   type="number"
                   value={newBet.stake}
-                  onChange={(e) => setNewBet({...newBet, stake: parseFloat(e.target.value)})}
+                  onChange={(e) => setNewBet({...newBet, stake: parseFloat(e.target.value) || 0})}
+                  min="0.01"
+                  step="0.01"
+                  required
                 />
               </div>
               <div className="form-group">
-                <label>Odds</label>
+                <label>Odds *</label>
                 <input
                   type="number"
                   step="0.01"
                   value={newBet.odds}
-                  onChange={(e) => setNewBet({...newBet, odds: parseFloat(e.target.value)})}
+                  onChange={(e) => setNewBet({...newBet, odds: parseFloat(e.target.value) || 0})}
+                  min="1.01"
+                  required
                 />
               </div>
               <div className="modal-actions">
@@ -588,6 +654,50 @@ const MyBets = () => {
                       </span>
                     </div>
                   </div>
+
+                  {/* Seção: Dados de Análise (se disponível) */}
+                  {selectedBet.analysis_data && (
+                    <div className="detail-section">
+                      <div className="section-title">
+                        <FaChartBar className="section-icon" />
+                        Dados de Análise
+                      </div>
+                      
+                      <div className="detail-row">
+                        <span className="detail-label">Fonte:</span>
+                        <span className="detail-value">
+                          {selectedBet.analysis_data.fixture?.league?.name ? 'API-SPORTS' : 'Manual'}
+                        </span>
+                      </div>
+                      
+                      {selectedBet.analysis_data.prediction?.winner && (
+                        <div className="detail-row">
+                          <span className="detail-label">Vencedor Previsto:</span>
+                          <span className="detail-value highlight">
+                            {selectedBet.analysis_data.prediction.winner.name}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {selectedBet.analysis_data.prediction?.under_over && (
+                        <div className="detail-row">
+                          <span className="detail-label">Previsão de Gols:</span>
+                          <span className="detail-value highlight">
+                            {selectedBet.analysis_data.prediction.under_over}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {selectedBet.analysis_data.prediction?.advice && (
+                        <div className="detail-row">
+                          <span className="detail-label">Recomendação:</span>
+                          <span className="detail-value">
+                            {selectedBet.analysis_data.prediction.advice}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Seção: Informações Financeiras */}
                   <div className="detail-section financial-section">

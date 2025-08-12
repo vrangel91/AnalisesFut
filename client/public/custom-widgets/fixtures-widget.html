@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Widget FIXTURES - API-FOOTBALL</title>
+        <style>
+            /* 🎨 Estilos básicos para o widget */
+            body {
+                margin: 0;
+                padding: 20px;
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+                min-height: 100vh;
+            }
+            
+            .widget-container {
+                max-width: 1200px;
+                margin: 0 auto;
+                background: white;
+                border-radius: 16px;
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+                overflow: hidden;
+            }
+            
+            .widget-header {
+                background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+                color: white;
+                padding: 2rem;
+                text-align: center;
+            }
+            
+            .widget-header h1 {
+                margin: 0;
+                font-size: 2rem;
+                font-weight: 700;
+            }
+            
+            .widget-header p {
+                margin: 0.5rem 0 0 0;
+                opacity: 0.9;
+                font-size: 1.1rem;
+            }
+            
+            .api_football_loader {
+                padding: 2rem;
+                background: white;
+            }
+            
+            /* 🎨 Customização do widget */
+            :root {
+                --primary-color: #3b82f6;
+                --secondary-color: #1d4ed8;
+                --accent-color: #fbbf24;
+                --success-color: #10b981;
+                --danger-color: #ef4444;
+                --text-primary: #1e293b;
+                --text-secondary: #64748b;
+                --bg-primary: #ffffff;
+                --bg-secondary: #f8fafc;
+                --border-color: rgba(0, 0, 0, 0.1);
+                --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                --border-radius: 12px;
+                --transition: all 0.3s ease;
+            }
+            
+            /* 📱 Responsividade */
+            @media (max-width: 768px) {
+                body {
+                    padding: 10px;
+                }
+                
+                .widget-header {
+                    padding: 1.5rem;
+                }
+                
+                .widget-header h1 {
+                    font-size: 1.5rem;
+                }
+                
+                .api_football_loader {
+                    padding: 1rem;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="widget-container">
+            <!-- Header do Widget -->
+            <div class="widget-header">
+                <h1>🏆 Widget FIXTURES</h1>
+                <p>Jogos e estatísticas em tempo real</p>
+            </div>
+            
+            <!-- Widget FIXTURES da API-FOOTBALL -->
+            <div id="wg-api-football-fixtures"
+                 data-host="v3.football.api-sports.io"
+                 data-refresh="60"
+                 data-date="2022-02-11"
+                 data-key="723269d925a86ea56e8311e812380c97"
+                 data-theme=""
+                 data-show-errors="false"
+                 class="api_football_loader">
+            </div>
+        </div>
+        
+        <!-- Script do Widget -->
+        <script type="module" src="https://widgets.api-sports.io/football/1.1.8/widget.js"></script>
+        
+        <script>
+            // 🚀 Inicialização e configuração do widget
+            document.addEventListener('DOMContentLoaded', function() {
+                console.log('🎯 Widget FIXTURES carregado com sucesso!');
+                console.log('📅 Data configurada: 2022-02-11');
+                console.log('🔄 Atualização: a cada 60 segundos');
+                console.log('🔑 API Key configurada');
+                
+                // 📊 Monitorar carregamento do widget
+                const widgetElement = document.getElementById('wg-api-football-fixtures');
+                
+                // 👀 Observer para detectar mudanças no widget
+                const observer = new MutationObserver(function(mutations) {
+                    mutations.forEach(function(mutation) {
+                        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                            console.log('✅ Widget FIXTURES renderizado com sucesso!');
+                            
+                            // 🎨 Aplicar estilos customizados após renderização
+                            setTimeout(() => {
+                                applyCustomStyles();
+                            }, 1000);
+                        }
+                    });
+                });
+                
+                // 🔍 Iniciar observação
+                observer.observe(widgetElement, {
+                    childList: true,
+                    subtree: true
+                });
+                
+                // 🎨 Função para aplicar estilos customizados
+                function applyCustomStyles() {
+                    console.log('🎨 Aplicando estilos customizados...');
+                    
+                    // Buscar elementos do widget e aplicar estilos
+                    const widgetElements = widgetElement.querySelectorAll('*');
+                    
+                    widgetElements.forEach(element => {
+                        if (element.classList.contains('wg-api-football-fixtures')) {
+                            element.style.fontFamily = 'Inter, sans-serif';
+                            element.style.color = 'var(--text-primary)';
+                        }
+                    });
+                    
+                    console.log('✅ Estilos customizados aplicados!');
+                }
+                
+                // ⏰ Atualizar data para hoje
+                function updateDateToToday() {
+                    const today = new Date();
+                    const dateString = today.toISOString().split('T')[0];
+                    
+                    console.log(`📅 Atualizando data para: ${dateString}`);
+                    
+                    // Atualizar atributo data-date
+                    widgetElement.setAttribute('data-date', dateString);
+                    
+                    // Recarregar widget se necessário
+                    if (window.location.search.includes('refresh=true')) {
+                        location.reload();
+                    }
+                }
+                
+                // 🔄 Atualizar data automaticamente
+                updateDateToToday();
+                
+                // 📱 Detectar dispositivo
+                const isMobile = window.innerWidth <= 768;
+                if (isMobile) {
+                    console.log('📱 Modo mobile detectado');
+                    document.body.classList.add('mobile');
+                }
+                
+                // 🎯 Configurações adicionais
+                const widgetConfig = {
+                    host: widgetElement.getAttribute('data-host'),
+                    refresh: widgetElement.getAttribute('data-refresh'),
+                    date: widgetElement.getAttribute('data-date'),
+                    key: widgetElement.getAttribute('data-key'),
+                    theme: widgetElement.getAttribute('data-theme'),
+                    showErrors: widgetElement.getAttribute('data-show-errors')
+                };
+                
+                console.log('⚙️ Configurações do widget:', widgetConfig);
+            });
+            
+            // 🌐 Função para abrir em nova aba
+            function openInNewTab() {
+                const currentUrl = window.location.href;
+                window.open(currentUrl, '_blank');
+            }
+            
+            // 📅 Função para mudar data
+            function changeDate(newDate) {
+                const widgetElement = document.getElementById('wg-api-football-fixtures');
+                widgetElement.setAttribute('data-date', newDate);
+                location.reload();
+            }
+            
+            // 🔄 Função para recarregar widget
+            function refreshWidget() {
+                location.reload();
+            }
+        </script>
+    </body>
+</html>

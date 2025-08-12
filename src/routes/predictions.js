@@ -1,260 +1,331 @@
 const express = require('express');
 const router = express.Router();
-const PredictionService = require('../services/predictionService');
-const cachedApiService = require('../services/cachedApiService');
+const predictionsService = require('../services/predictionsService');
+const axios = require('axios');
 const cacheService = require('../services/cacheService');
 
-const predictionService = new PredictionService();
+/**
+ * @route   GET /api/predictions/:fixtureId
+ * @desc    Obtém predições para uma fixture específica
+ * @access  Public
+ */
+router.get('/:fixtureId', async (req, res) => {
+  try {
+    const { fixtureId } = req.params;
+    const { refresh } = req.query;
+    
+    if (!fixtureId) {
+      return res.status(400).json({
+        success: false,
+        error: 'ID da fixture é obrigatório'
+      });
+    }
 
-// GET /api/predictions/today - Predições para jogos de hoje
+    const forceRefresh = refresh === 'true';
+    const result = await predictionsService.getFixturePredictions(parseInt(fixtureId), forceRefresh);
+
+    if (!result.success) {
+      return res.status(404).json(result);
+    }
+
+    res.json(result);
+
+  } catch (error) {
+    console.error('❌ Erro ao buscar predições:', error.message);
+    res.status(500).json({
+      success: false,
+      error: 'Erro interno do servidor',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * @route   POST /api/predictions/refresh/:fixtureId
+ * @desc    Força atualização das predições para uma fixture
+ * @access  Public
+ */
+router.post('/refresh/:fixtureId', async (req, res) => {
+  try {
+    const { fixtureId } = req.params;
+    
+    if (!fixtureId) {
+      return res.status(400).json({
+        success: false,
+        error: 'ID da fixture é obrigatório'
+      });
+    }
+
+    console.log(`🔄 Forçando atualização das predições para fixture ${fixtureId}`);
+    
+    const result = await predictionsService.getFixturePredictions(parseInt(fixtureId), true);
+
+    if (!result.success) {
+      return res.status(404).json(result);
+    }
+
+    res.json(result);
+
+  } catch (error) {
+    console.error('❌ Erro ao atualizar predições:', error.message);
+    res.status(500).json({
+      success: false,
+      error: 'Erro interno do servidor',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * @route   POST /api/predictions/multiple
+ * @desc    Obtém predições para múltiplas fixtures
+ * @access  Public
+ */
+router.post('/multiple', async (req, res) => {
+  try {
+    const { fixtureIds } = req.body;
+    
+    if (!fixtureIds || !Array.isArray(fixtureIds) || fixtureIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Array de IDs das fixtures é obrigatório'
+      });
+    }
+
+    if (fixtureIds.length > 10) {
+      return res.status(400).json({
+        success: false,
+        error: 'Máximo de 10 fixtures por requisição'
+      });
+    }
+
+    console.log(`🔮 Buscando predições para ${fixtureIds.length} fixtures`);
+    
+    const results = await predictionsService.getMultipleFixturePredictions(fixtureIds);
+
+    res.json({
+      success: true,
+      data: results,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('❌ Erro ao buscar predições múltiplas:', error.message);
+    res.status(500).json({
+      success: false,
+      error: 'Erro interno do servidor',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * @route   DELETE /api/predictions/cache/:fixtureId
+ * @desc    Limpa cache de predições para uma fixture
+ * @access  Public
+ */
+router.delete('/cache/:fixtureId', async (req, res) => {
+  try {
+    const { fixtureId } = req.params;
+    
+    if (!fixtureId) {
+      return res.status(400).json({
+        success: false,
+        error: 'ID da fixture é obrigatório'
+      });
+    }
+
+    const success = await predictionsService.clearPredictionCache(parseInt(fixtureId));
+
+    if (success) {
+      res.json({
+        success: true,
+        message: `Cache de predições limpo para fixture ${fixtureId}`,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Erro ao limpar cache'
+      });
+    }
+
+  } catch (error) {
+    console.error('❌ Erro ao limpar cache de predições:', error.message);
+    res.status(500).json({
+      success: false,
+      error: 'Erro interno do servidor',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * @route   GET /api/predictions/health
+ * @desc    Verifica a saúde do serviço de predições
+ * @access  Public
+ */
+router.get('/health', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Serviço de predições funcionando',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// ===== ROTAS ANTIGAS PARA COMPATIBILIDADE =====
+
+/**
+ * @route   GET /api/predictions/today
+ * @desc    Obtém predições para jogos de hoje (compatibilidade)
+ * @access  Public
+ */
 router.get('/today', async (req, res) => {
   try {
     const { refresh } = req.query;
     const forceRefresh = refresh === 'true';
     
-    if (!forceRefresh) {
-      console.log('🔍 Verificando cache para predictions/today...');
-      const cachedData = await cacheService.getCache('predictions', { type: 'today' });
-      console.log('🔍 Resultado do cache:', cachedData ? 'encontrado' : 'não encontrado');
-      
-      if (cachedData) {
-        console.log('📦 Retornando predições de hoje do cache');
-        return res.json({
-          success: true,
-          data: cachedData.data || [],
-          count: cachedData.data?.length || 0,
-          timestamp: cachedData.timestamp,
-          fromCache: true
-        });
-      } else {
-        console.log('❌ Cache miss para predictions/today');
+    // Buscar fixtures de hoje
+    const fixturesResponse = await axios.get(`${process.env.API_SPORTS_BASE_URL || 'https://v3.football.api-sports.io'}/fixtures`, {
+      params: { 
+        date: new Date().toISOString().split('T')[0],
+        status: 'NS-LIVE-FT'
+      },
+      headers: {
+        'x-rapidapi-host': 'v3.football.api-sports.io',
+        'x-rapidapi-key': process.env.API_SPORTS_KEY
       }
+    });
+
+    if (!fixturesResponse.data.response || fixturesResponse.data.response.length === 0) {
+      return res.json({
+        success: true,
+        data: [],
+        fromCache: false,
+        timestamp: new Date().toISOString()
+      });
     }
 
-    console.log('🔄 Gerando predições de hoje (não encontradas no cache)');
-    const predictions = await predictionService.getTodayPredictions();
-    
-    // Salvar no cache
-    console.log('💾 Salvando predições no cache...');
-    await cacheService.setCache('predictions', { type: 'today' }, {
-      data: predictions || [],
-      count: predictions?.length || 0,
-      timestamp: new Date().toISOString()
-    });
-    console.log('✅ Predições salvas no cache');
-    
+    // Buscar predições para as primeiras 5 fixtures
+    const fixtureIds = fixturesResponse.data.response.slice(0, 5).map(f => f.fixture.id);
+    const predictions = await predictionsService.getMultipleFixturePredictions(fixtureIds);
+
     res.json({
       success: true,
-      data: predictions || [],
-      count: predictions?.length || 0,
-      timestamp: new Date().toISOString(),
-      fromCache: false
+      data: Object.values(predictions).filter(p => p.success).map(p => p.data),
+      fromCache: false,
+      timestamp: new Date().toISOString()
     });
+
   } catch (error) {
-    console.error('Erro ao obter predições de hoje:', error);
+    console.error('❌ Erro ao buscar predições de hoje:', error.message);
     res.status(500).json({
       success: false,
-      error: 'Erro interno do servidor',
-      message: error.message
+      error: 'Erro ao buscar predições de hoje',
+      details: error.message
     });
   }
 });
 
-// GET /api/predictions/live - Predições para jogos ao vivo
+/**
+ * @route   GET /api/predictions/live
+ * @desc    Obtém predições para jogos ao vivo (compatibilidade)
+ * @access  Public
+ */
 router.get('/live', async (req, res) => {
   try {
     const { refresh } = req.query;
     const forceRefresh = refresh === 'true';
     
-    if (!forceRefresh) {
-      const cachedData = await cacheService.getCache('predictions', { type: 'live' });
-      
-      if (cachedData) {
-        console.log('📦 Retornando predições ao vivo do cache');
-        return res.json({
-          success: true,
-          data: cachedData.data || [],
-          count: cachedData.data?.length || 0,
-          timestamp: cachedData.timestamp,
-          fromCache: true
-        });
+    // Buscar fixtures ao vivo
+    const fixturesResponse = await axios.get(`${process.env.API_SPORTS_BASE_URL || 'https://v3.football.api-sports.io'}/fixtures`, {
+      params: { 
+        status: 'LIVE'
+      },
+      headers: {
+        'x-rapidapi-host': 'v3.football.api-sports.io',
+        'x-rapidapi-key': process.env.API_SPORTS_KEY
       }
-    }
+    });
 
-    console.log('🔄 Gerando predições ao vivo (não encontradas no cache)');
-    const predictions = await predictionService.getLivePredictions();
-    
-    // Salvar no cache
-    await cacheService.setCache('predictions', { type: 'live' }, {
-      data: predictions || [],
-      count: predictions?.length || 0,
-      timestamp: new Date().toISOString()
-    });
-    
-    res.json({
-      success: true,
-      data: predictions || [],
-      count: predictions?.length || 0,
-      timestamp: new Date().toISOString(),
-      fromCache: false
-    });
-  } catch (error) {
-    console.error('Erro ao obter predições ao vivo:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Erro interno do servidor',
-      message: error.message
-    });
-  }
-});
-
-// GET /api/predictions/league/:leagueId/:season - Predições para uma liga específica
-router.get('/league/:leagueId/:season', async (req, res) => {
-  try {
-    const { leagueId, season } = req.params;
-    const predictions = await predictionService.getLeaguePredictions(leagueId, season);
-    
-    res.json({
-      success: true,
-      data: predictions,
-      count: predictions.length,
-      leagueId,
-      season,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('Erro ao obter predições da liga:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Erro interno do servidor',
-      message: error.message
-    });
-  }
-});
-
-// GET /api/predictions/fixture/:fixtureId - Predição para um jogo específico
-router.get('/fixture/:fixtureId', async (req, res) => {
-  try {
-    const { fixtureId } = req.params;
-    const prediction = await predictionService.getApiPredictions(fixtureId);
-    
-    if (!prediction) {
-      return res.status(404).json({
-        success: false,
-        error: 'Predição não encontrada',
-        message: 'Não foi possível obter predições para este jogo'
+    if (!fixturesResponse.data.response || fixturesResponse.data.response.length === 0) {
+      return res.json({
+        success: true,
+        data: [],
+        fromCache: false,
+        timestamp: new Date().toISOString()
       });
     }
-    
+
+    // Buscar predições para as primeiras 5 fixtures ao vivo
+    const fixtureIds = fixturesResponse.data.response.slice(0, 5).map(f => f.fixture.id);
+    const predictions = await predictionsService.getMultipleFixturePredictions(fixtureIds);
+
     res.json({
       success: true,
-      data: {
-        fixture: {
-          id: fixtureId,
-          home: prediction.teams.home.name,
-          away: prediction.teams.away.name,
-          league: prediction.league.name
-        },
-        prediction: prediction.predictions,
-        confidence: predictionService.calculateConfidence(prediction),
-        recommendation: predictionService.generateRecommendation(prediction),
-        riskLevel: predictionService.calculateRiskLevel(prediction),
-        bestBets: predictionService.suggestBestBets(prediction)
-      },
+      data: Object.values(predictions).filter(p => p.success).map(p => p.data),
+      fromCache: false,
       timestamp: new Date().toISOString()
     });
+
   } catch (error) {
-    console.error('Erro ao obter predição do jogo:', error);
+    console.error('❌ Erro ao buscar predições ao vivo:', error.message);
     res.status(500).json({
       success: false,
-      error: 'Erro interno do servidor',
-      message: error.message
+      error: 'Erro ao buscar predições ao vivo',
+      details: error.message
     });
   }
 });
 
-// GET /api/predictions/analysis/:fixtureId - Análise completa de um jogo
-router.get('/analysis/:fixtureId', async (req, res) => {
+/**
+ * @route   GET /api/predictions/finished
+ * @desc    Obtém predições para jogos finalizados (compatibilidade)
+ * @access  Public
+ */
+router.get('/finished', async (req, res) => {
   try {
-    const { fixtureId } = req.params;
-    const analysis = await predictionService.getCompleteAnalysis(fixtureId);
+    const { refresh } = req.query;
+    const forceRefresh = refresh === 'true';
     
-    if (analysis.error) {
-      return res.status(404).json({
-        success: false,
-        error: 'Análise não disponível',
-        message: analysis.error
+    // Buscar fixtures finalizadas hoje
+    const fixturesResponse = await axios.get(`${process.env.API_SPORTS_BASE_URL || 'https://v3.football.api-sports.io'}/fixtures`, {
+      params: { 
+        date: new Date().toISOString().split('T')[0],
+        status: 'FT'
+      },
+      headers: {
+        'x-rapidapi-host': 'v3.football.api-sports.io',
+        'x-rapidapi-key': process.env.API_SPORTS_KEY
+      }
+    });
+
+    if (!fixturesResponse.data.response || fixturesResponse.data.response.length === 0) {
+      return res.json({
+        success: true,
+        data: [],
+        fromCache: false,
+        timestamp: new Date().toISOString()
       });
     }
-    
-    res.json({
-      success: true,
-      data: analysis,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('Erro ao obter análise completa:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Erro interno do servidor',
-      message: error.message
-    });
-  }
-});
 
-// GET /api/predictions/stats - Estatísticas das predições
-router.get('/stats', async (req, res) => {
-  try {
-    const todayPredictions = await predictionService.getTodayPredictions();
-    const livePredictions = await predictionService.getLivePredictions();
-    
-    const stats = {
-      today: {
-        total: todayPredictions.length,
-        highConfidence: todayPredictions.filter(p => p.confidence === 'alta').length,
-        mediumConfidence: todayPredictions.filter(p => p.confidence === 'média').length,
-        lowConfidence: todayPredictions.filter(p => p.confidence === 'baixa').length
-      },
-      live: {
-        total: livePredictions.length,
-        highConfidence: livePredictions.filter(p => p.confidence === 'alta').length,
-        mediumConfidence: livePredictions.filter(p => p.confidence === 'média').length,
-        lowConfidence: livePredictions.filter(p => p.confidence === 'baixa').length
-      }
-    };
-    
-    res.json({
-      success: true,
-      data: stats,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('Erro ao obter estatísticas das predições:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Erro interno do servidor',
-      message: error.message
-    });
-  }
-});
+    // Buscar predições para as primeiras 5 fixtures finalizadas
+    const fixtureIds = fixturesResponse.data.response.slice(0, 5).map(f => f.fixture.id);
+    const predictions = await predictionsService.getMultipleFixturePredictions(fixtureIds);
 
-// POST /api/predictions/clear-cache - Limpar cache de previsões
-router.post('/clear-cache', async (req, res) => {
-  try {
-    // Limpar cache de previsões (o cacheService não tem método delete, mas o TTL vai expirar automaticamente)
-    console.log('🗑️ Cache de previsões será limpo automaticamente pelo TTL');
-    
     res.json({
       success: true,
-      message: 'Cache de previsões será limpo automaticamente',
+      data: Object.values(predictions).filter(p => p.success).map(p => p.data),
+      fromCache: false,
       timestamp: new Date().toISOString()
     });
+
   } catch (error) {
-    console.error('Erro ao limpar cache de previsões:', error);
+    console.error('❌ Erro ao buscar predições finalizadas:', error.message);
     res.status(500).json({
       success: false,
-      error: 'Erro interno do servidor',
-      message: error.message
+      error: 'Erro ao buscar predições finalizadas',
+      details: error.message
     });
   }
 });

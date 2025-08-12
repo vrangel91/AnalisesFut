@@ -34,10 +34,35 @@ router.get('/fixture/:fixtureId', async (req, res) => {
       half === 'true'
     );
 
+    // Sempre retornar sucesso, mesmo sem dados
     if (!statistics) {
-      return res.status(404).json({
-        success: false,
-        error: 'Estatísticas não encontradas para esta fixture'
+      return res.json({
+        success: true,
+        data: {
+          fixtureId: parseInt(fixtureId),
+          half: half === 'true',
+          teamStats: [],
+          summary: {
+            totalCornerKicks: 0,
+            totalShots: 0,
+            totalFouls: 0,
+            totalYellowCards: 0,
+            totalRedCards: 0,
+            totalPasses: 0,
+            totalPassesAccurate: 0,
+            averageCornerKicks: 0,
+            averageShots: 0,
+            averageFouls: 0,
+            averageYellowCards: 0,
+            averageRedCards: 0,
+            averagePasses: 0,
+            averagePassesAccurate: 0,
+            passesAccuracyPercentage: 0
+          },
+          message: 'Estatísticas não disponíveis para esta fixture'
+        },
+        fromCache: false,
+        timestamp: new Date().toISOString()
       });
     }
 
@@ -91,10 +116,19 @@ router.get('/corners/:fixtureId', async (req, res) => {
       half === 'true'
     );
 
+    // Sempre retornar sucesso, mesmo sem dados
     if (!cornerStats) {
-      return res.status(404).json({
-        success: false,
-        error: 'Estatísticas de escanteios não encontradas para esta fixture'
+      return res.json({
+        success: true,
+        data: {
+          fixtureId: parseInt(fixtureId),
+          totalCornerKicks: 0,
+          teamStats: [],
+          half: half === 'true',
+          message: 'Estatísticas não disponíveis para esta fixture'
+        },
+        fromCache: false,
+        timestamp: new Date().toISOString()
       });
     }
 

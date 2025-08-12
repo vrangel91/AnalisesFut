@@ -19,6 +19,7 @@ const Dashboard = () => {
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
   const [stats, setStats] = useState({
     totalFixtures: 0,
     liveFixtures: 0,
@@ -474,21 +475,7 @@ const Dashboard = () => {
             </div>
           )}
 
-          {/* Botão de Detalhes */}
-          <div className="card-actions">
-            <button
-              onClick={() => {
-                // Aqui você pode adicionar lógica para navegar para detalhes do jogo
-                console.log('Ver detalhes do jogo:', fixture.id || fixture.fixture?.id);
-                // Exemplo: window.open(`/predictions?fixture=${fixture.id || fixture.fixture?.id}`, '_blank');
-              }}
-              className="details-btn"
-              title="Ver estatísticas e análises detalhadas"
-            >
-              <FaEye />
-              <span>Detalhes</span>
-            </button>
-          </div>
+
         </div>
       );
     } catch (error) {
@@ -816,6 +803,8 @@ const Dashboard = () => {
           </button>
         </div>
       </div>
+
+
     </div>
   );
 };

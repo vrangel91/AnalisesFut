@@ -23,6 +23,12 @@ const betsRoutes = require('./src/routes/bets');
 const ngrokRoutes = require('./src/routes/ngrok');
 const h2hCornersRoutes = require('./src/routes/h2hCorners');
 
+// Importar novas rotas separadas
+const fixtureStatisticsRoutes = require('./src/routes/fixtureStatistics');
+const cornerKicksRoutes = require('./src/routes/cornerKicks');
+const cornerKicksStatisticsRoutes = require('./src/routes/cornerKicksStatistics');
+const apiPredictionsRoutes = require('./src/routes/predictions');
+
 // Importar serviços
 const cacheService = require('./src/services/cacheService');
 const cachedApiService = require('./src/services/cachedApiService');
@@ -96,6 +102,12 @@ app.use('/api/bets', betsRoutes);
 app.use('/api/ngrok', ngrokRoutes);
 app.use('/api/h2h-corners', h2hCornersRoutes);
 
+// Novas rotas separadas
+app.use('/api/fixture-statistics', fixtureStatisticsRoutes);
+app.use('/api/corner-kicks', cornerKicksRoutes);
+app.use('/api/corner-kicks-statistics', cornerKicksStatisticsRoutes);
+app.use('/api/api-predictions', apiPredictionsRoutes);
+
 // Rota principal
 app.get('/api/health', (req, res) => {
   res.json({ 
@@ -105,7 +117,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Rota para servir o frontend
+// Rota para servir o frontend (deve vir DEPOIS das rotas da API)
 app.get('*', (req, res) => {
   if (buildExists) {
     res.sendFile(path.join(buildPath, 'index.html'));

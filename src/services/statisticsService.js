@@ -58,10 +58,23 @@ class StatisticsService {
         };
       }
 
-      return null;
+      // Retornar dados padrão quando não há estatísticas disponíveis
+      return {
+        fixtureId,
+        totalCornerKicks: 0,
+        teamStats: [],
+        half: half,
+        message: 'Estatísticas não disponíveis para esta fixture'
+      };
     } catch (error) {
       console.error(`❌ Erro ao buscar estatísticas de escanteios da fixture ${fixtureId}:`, error.message);
-      return null;
+      return {
+        fixtureId,
+        totalCornerKicks: 0,
+        teamStats: [],
+        half: half,
+        error: error.message
+      };
     }
   }
 
@@ -95,10 +108,55 @@ class StatisticsService {
         };
       }
 
-      return null;
+      // Retornar dados padrão quando não há estatísticas disponíveis
+      return {
+        fixtureId,
+        half: half,
+        teamStats: [],
+        summary: {
+          totalCornerKicks: 0,
+          totalShots: 0,
+          totalFouls: 0,
+          totalYellowCards: 0,
+          totalRedCards: 0,
+          totalPasses: 0,
+          totalPassesAccurate: 0,
+          averageCornerKicks: 0,
+          averageShots: 0,
+          averageFouls: 0,
+          averageYellowCards: 0,
+          averageRedCards: 0,
+          averagePasses: 0,
+          averagePassesAccurate: 0,
+          passesAccuracyPercentage: 0
+        },
+        message: 'Estatísticas não disponíveis para esta fixture'
+      };
     } catch (error) {
       console.error(`❌ Erro ao buscar estatísticas completas da fixture ${fixtureId}:`, error.message);
-      return null;
+      return {
+        fixtureId,
+        half: half,
+        teamStats: [],
+        summary: {
+          totalCornerKicks: 0,
+          totalShots: 0,
+          totalFouls: 0,
+          totalYellowCards: 0,
+          totalRedCards: 0,
+          totalPasses: 0,
+          totalPassesAccurate: 0,
+          averageCornerKicks: 0,
+          averageShots: 0,
+          averageFouls: 0,
+          averageYellowCards: 0,
+          averageRedCards: 0,
+          averagePasses: 0,
+          averagePassesAccurate: 0,
+          passesAccuracyPercentage: 0
+        },
+        error: error.message
+      };
     }
   }
 

@@ -22,7 +22,7 @@ const Navbar = () => {
               <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
                 <FaFutbol className="text-white text-sm" />
               </div>
-              <span className="text-white font-bold text-xl">IA Apostas</span>
+              <span className="text-white font-bold text-xl">ZiKa Bets</span>
             </Link>
           </div>
           

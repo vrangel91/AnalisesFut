@@ -14,7 +14,8 @@ class CacheService {
       teams: 24 * 60 * 60 * 1000, // 24 horas
       predictions: 60 * 60 * 1000, // 1 hora
       h2h: 12 * 60 * 60 * 1000, // 12 horas
-      statistics: 60 * 60 * 1000, // 1 hora
+      statistics: 24 * 60 * 60 * 1000, // 24 horas (1x ao dia conforme recomendação da API)
+      'fixtures/statistics': 24 * 60 * 60 * 1000, // 24 horas para estatísticas de fixtures
       default: 15 * 60 * 1000 // 15 minutos
     };
   }
