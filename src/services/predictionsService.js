@@ -194,18 +194,69 @@ class PredictionsService {
       confidence: 'Média',
       recommendedBets: [],
       riskLevel: 'Médio',
-      keyInsights: []
+      keyInsights: [],
+      advancedScore: 0
     };
 
     // Analisar confiança baseada nos percentuais
     const homePercent = parseInt(predictions.percent.home);
     const awayPercent = parseInt(predictions.percent.away);
     const drawPercent = parseInt(predictions.percent.draw);
-
-    if (Math.max(homePercent, awayPercent, drawPercent) >= 70) {
+    
+    const maxPercent = Math.max(homePercent, awayPercent, drawPercent);
+    const totalPercent = homePercent + awayPercent + drawPercent;
+    
+    // Lógica mais realista para confiança
+    if (maxPercent >= 60) {
       analysis.confidence = 'Alta';
       analysis.riskLevel = 'Baixo';
-    } else if (Math.max(homePercent, awayPercent, drawPercent) >= 55) {
+    } else if (maxPercent >= 45) {
+      analysis.confidence = 'Média';
+      analysis.riskLevel = 'Médio';
+    } else {
+      analysis.confidence = 'Baixa';
+      analysis.riskLevel = 'Alto';
+    }
+    
+    // Ajustar baseado na distribuição dos percentuais
+    if (maxPercent >= 50 && (homePercent === awayPercent || awayPercent === drawPercent || homePercent === drawPercent)) {
+      // Se há empate nos percentuais mais altos, reduzir confiança
+      if (analysis.confidence === 'Alta') {
+        analysis.confidence = 'Média';
+        analysis.riskLevel = 'Médio';
+      }
+    }
+
+    // 🚀 NOVA: Análise de tendências históricas
+    const homeForm = this.analyzeTeamForm(teams.home?.last_5);
+    const awayForm = this.analyzeTeamForm(teams.away?.last_5);
+    
+    // Calcular score de forma recente
+    const formScore = this.calculateFormScore(homeForm, awayForm);
+    
+    // 🚀 NOVA: Análise de distribuição de Poisson
+    const poissonScore = this.calculatePoissonScore(comparison?.poissonDistribution || {});
+    
+    // 🚀 NOVA: Análise de ataque/defesa
+    const attackDefenseScore = this.calculateAttackDefenseScore(
+      comparison?.attack || { home: 0, away: 0 }, 
+      comparison?.defense || { home: 0, away: 0 }
+    );
+
+    // 🚀 NOVA: Score composto avançado
+    analysis.advancedScore = this.calculateAdvancedScore({
+      apiConfidence: maxPercent / 100,
+      formScore: formScore,
+      poissonScore: poissonScore,
+      attackDefenseScore: attackDefenseScore,
+      h2hScore: comparison?.h2h?.home > comparison?.h2h?.away ? 0.8 : 0.2
+    });
+
+    // Ajustar confiança baseada no score avançado
+    if (analysis.advancedScore >= 0.7) {
+      analysis.confidence = 'Alta';
+      analysis.riskLevel = 'Baixo';
+    } else if (analysis.advancedScore >= 0.5) {
       analysis.confidence = 'Média';
       analysis.riskLevel = 'Médio';
     } else {
@@ -227,17 +278,43 @@ class PredictionsService {
       }
     }
 
+    // 🚀 NOVA: Insights baseados na forma recente
+    if (homeForm.wins > 3) {
+      analysis.keyInsights.push('Time da casa em excelente forma recente');
+    } else if (homeForm.losses > 3) {
+      analysis.keyInsights.push('Time da casa em má fase');
+    }
+
+    if (awayForm.wins > 3) {
+      analysis.keyInsights.push('Time visitante em excelente forma recente');
+    } else if (awayForm.losses > 3) {
+      analysis.keyInsights.push('Time visitante em má fase');
+    }
+
     // Analisar comparação de times
-    if (comparison.form.home > comparison.form.away) {
+    if (comparison?.form?.home > comparison?.form?.away) {
       analysis.keyInsights.push('Time da casa em melhor forma recente');
-    } else if (comparison.form.away > comparison.form.home) {
+    } else if (comparison?.form?.away > comparison?.form?.home) {
       analysis.keyInsights.push('Time visitante em melhor forma recente');
     }
 
-    if (comparison.poisson_distribution.home > comparison.poisson_distribution.away) {
+    if (comparison?.poissonDistribution?.home > comparison?.poissonDistribution?.away) {
       analysis.keyInsights.push('Distribuição de Poisson favorece time da casa');
-    } else {
+    } else if (comparison?.poissonDistribution?.away > comparison?.poissonDistribution?.home) {
       analysis.keyInsights.push('Distribuição de Poisson favorece time visitante');
+    }
+
+    // 🚀 NOVA: Análise de ataque/defesa
+    if (comparison?.attack?.home > comparison?.attack?.away) {
+      analysis.keyInsights.push('Time da casa tem melhor ataque');
+    } else if (comparison?.attack?.away > comparison?.attack?.home) {
+      analysis.keyInsights.push('Time visitante tem melhor ataque');
+    }
+
+    if (comparison?.defense?.home > comparison?.defense?.away) {
+      analysis.keyInsights.push('Time da casa tem melhor defesa');
+    } else if (comparison?.defense?.away > comparison?.defense?.home) {
+      analysis.keyInsights.push('Time visitante tem melhor defesa');
     }
 
     // Gerar recomendações de apostas
@@ -245,15 +322,173 @@ class PredictionsService {
       analysis.recommendedBets.push(predictions.advice);
     }
 
-    if (homePercent > 60) {
-      analysis.recommendedBets.push('Vitória do time da casa');
-    } else if (awayPercent > 60) {
-      analysis.recommendedBets.push('Vitória do time visitante');
-    } else if (drawPercent > 40) {
+    // 🚀 NOVA: Recomendações baseadas no score avançado
+    if (analysis.advancedScore >= 0.7) {
+      if (homePercent > 60) {
+        analysis.recommendedBets.push('APOSTA FORTE: Vitória do time da casa');
+      } else if (awayPercent > 60) {
+        analysis.recommendedBets.push('APOSTA FORTE: Vitória do time visitante');
+      }
+    } else if (analysis.advancedScore >= 0.5) {
+      if (homePercent > 50) {
+        analysis.recommendedBets.push('APOSTA MODERADA: Vitória do time da casa');
+      } else if (awayPercent > 50) {
+        analysis.recommendedBets.push('APOSTA MODERADA: Vitória do time visitante');
+      }
+    }
+
+    if (drawPercent > 40) {
       analysis.recommendedBets.push('Empate ou dupla chance');
     }
 
     return analysis;
+  }
+
+  /**
+   * 🚀 NOVA: Analisa a forma recente de um time
+   * @param {Object|Array} last5 - Últimos 5 jogos (pode ser objeto ou array)
+   * @returns {Object} Análise da forma
+   */
+  analyzeTeamForm(last5) {
+    const form = {
+      wins: 0,
+      draws: 0,
+      losses: 0,
+      goalsFor: 0,
+      goalsAgainst: 0
+    };
+
+    // Se last5 é um array (formato esperado: ['W', 'D', 'L', 'W', 'D'])
+    if (Array.isArray(last5)) {
+      last5.forEach(match => {
+        if (match === 'W') {
+          form.wins++;
+        } else if (match === 'D') {
+          form.draws++;
+        } else if (match === 'L') {
+          form.losses++;
+        }
+      });
+    }
+    // Se last5 é um objeto (formato atual da API)
+    else if (last5 && typeof last5 === 'object') {
+      // Tentar extrair informações do objeto last5
+      if (last5.form && typeof last5.form === 'string') {
+        // Se form é uma string como "60%", tentar interpretar
+        const formPercent = parseInt(last5.form.replace('%', ''));
+        if (!isNaN(formPercent)) {
+          // Estimativa baseada na porcentagem de forma
+          if (formPercent >= 80) {
+            form.wins = 4;
+            form.draws = 1;
+          } else if (formPercent >= 60) {
+            form.wins = 3;
+            form.draws = 2;
+          } else if (formPercent >= 40) {
+            form.wins = 2;
+            form.draws = 2;
+            form.losses = 1;
+          } else if (formPercent >= 20) {
+            form.wins = 1;
+            form.draws = 2;
+            form.losses = 2;
+          } else {
+            form.wins = 0;
+            form.draws = 1;
+            form.losses = 4;
+          }
+        }
+      }
+      
+      // Se há dados de gols, usar para estimar
+      if (last5.goals && last5.goals.for && last5.goals.against) {
+        form.goalsFor = last5.goals.for.total || 0;
+        form.goalsAgainst = last5.goals.against.total || 0;
+      }
+    }
+
+    return form;
+  }
+
+  /**
+   * 🚀 NOVA: Calcula score baseado na forma recente
+   * @param {Object} homeForm - Forma do time da casa
+   * @param {Object} awayForm - Forma do time visitante
+   * @returns {number} Score de forma (0-1)
+   */
+  calculateFormScore(homeForm, awayForm) {
+    const homeScore = (homeForm.wins * 3 + homeForm.draws) / 15; // Máximo 15 pontos
+    const awayScore = (awayForm.wins * 3 + awayForm.draws) / 15;
+    
+    // Se time da casa tem melhor forma, score mais alto
+    if (homeScore > awayScore) {
+      return 0.5 + (homeScore - awayScore) * 0.5;
+    } else {
+      return 0.5 - (awayScore - homeScore) * 0.5;
+    }
+  }
+
+  /**
+   * 🚀 NOVA: Calcula score baseado na distribuição de Poisson
+   * @param {Object} poisson - Distribuição de Poisson
+   * @returns {number} Score de Poisson (0-1)
+   */
+  calculatePoissonScore(poisson) {
+    // Converter strings como "0%" para números
+    const homePoisson = typeof poisson.home === 'string' ? 
+      parseInt(poisson.home.replace('%', '')) / 100 : 
+      (poisson.home || 0);
+    const awayPoisson = typeof poisson.away === 'string' ? 
+      parseInt(poisson.away.replace('%', '')) / 100 : 
+      (poisson.away || 0);
+    
+    if (homePoisson > awayPoisson) {
+      return 0.5 + (homePoisson - awayPoisson) * 0.1;
+    } else {
+      return 0.5 - (awayPoisson - homePoisson) * 0.1;
+    }
+  }
+
+  /**
+   * 🚀 NOVA: Calcula score baseado em ataque/defesa
+   * @param {Object} attack - Estatísticas de ataque
+   * @param {Object} defense - Estatísticas de defesa
+   * @returns {number} Score de ataque/defesa (0-1)
+   */
+  calculateAttackDefenseScore(attack, defense) {
+    // Converter strings como "0%" para números
+    const homeAttack = typeof attack.home === 'string' ? 
+      parseInt(attack.home.replace('%', '')) : 
+      (attack.home || 0);
+    const awayAttack = typeof attack.away === 'string' ? 
+      parseInt(attack.away.replace('%', '')) : 
+      (attack.away || 0);
+    const homeDefense = typeof defense.home === 'string' ? 
+      parseInt(defense.home.replace('%', '')) : 
+      (defense.home || 0);
+    const awayDefense = typeof defense.away === 'string' ? 
+      parseInt(defense.away.replace('%', '')) : 
+      (defense.away || 0);
+    
+    const homeAttackAdvantage = (homeAttack - awayAttack) / 100;
+    const homeDefenseAdvantage = (homeDefense - awayDefense) / 100;
+    
+    return 0.5 + (homeAttackAdvantage + homeDefenseAdvantage) * 0.25;
+  }
+
+  /**
+   * 🚀 NOVA: Calcula score composto avançado
+   * @param {Object} scores - Scores individuais
+   * @returns {number} Score composto (0-1)
+   */
+  calculateAdvancedScore(scores) {
+    return (
+      scores.apiConfidence * 0.35 +
+      scores.formScore * 0.25 +
+      scores.poissonScore * 0.20 +
+      scores.attackDefenseScore * 0.15 +
+      scores.h2hScore * 0.05
+    );
   }
 
   /**

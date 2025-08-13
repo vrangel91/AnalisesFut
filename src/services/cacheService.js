@@ -245,6 +245,38 @@ class CacheService {
     });
   }
 
+  // Limpar todo o cache
+  async clearAllCache() {
+    return new Promise((resolve, reject) => {
+      this.db.run('DELETE FROM cache', (err) => {
+        if (err) {
+          console.error('❌ Erro ao limpar cache:', err);
+          reject(err);
+        } else {
+          console.log('🗑️ Todo o cache foi limpo');
+          resolve(true);
+        }
+      });
+    });
+  }
+
+  // Limpar cache por endpoint
+  async clearCacheByEndpoint(endpoint) {
+    return new Promise((resolve, reject) => {
+      const stmt = this.db.prepare('DELETE FROM cache WHERE endpoint LIKE ?');
+      stmt.run(`%${endpoint}%`, (err) => {
+        if (err) {
+          console.error(`❌ Erro ao limpar cache do endpoint ${endpoint}:`, err);
+          reject(err);
+        } else {
+          console.log(`🗑️ Cache do endpoint ${endpoint} foi limpo`);
+          resolve(true);
+        }
+      });
+      stmt.finalize();
+    });
+  }
+
   // Fechar conexão com banco
   close() {
     this.db.close((err) => {

@@ -19,7 +19,8 @@ echo    Configuracao necessaria:
 echo ========================================
 echo 1. Configure sua chave da API-SPORTS no arquivo config.env
 echo 2. Execute: npm run dev
-echo 3. Em outro terminal: cd client && npm start
+echo 3. Em outro terminal: cd client
+echo    npm start
 echo.
 echo Acesse: http://localhost:3000
 echo ========================================

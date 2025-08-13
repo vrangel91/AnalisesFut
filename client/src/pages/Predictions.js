@@ -76,6 +76,12 @@ const Predictions = () => {
       }
       
       fixturesToLoad.forEach(prediction => {
+        // Verificar se prediction e suas propriedades existem
+        if (!prediction || !prediction.fixture || !prediction.fixture.fixture || !prediction.fixture.fixture.id) {
+          console.warn('⚠️ Prediction inválida encontrada:', prediction);
+          return; // Pular esta prediction
+        }
+        
         const fixtureId = prediction.fixture.fixture.id;
         
         // Carregar odds se habilitado
@@ -85,7 +91,7 @@ const Predictions = () => {
         }
         
         // Carregar análise H2H de corner kicks se habilitado
-        if (autoLoadH2hCorners && prediction && prediction.fixture && prediction.fixture.fixture && prediction.fixture.fixture.id && !h2hCornerAnalysis[fixtureId] && !loadingH2hCorners[fixtureId]) {
+        if (autoLoadH2hCorners && !h2hCornerAnalysis[fixtureId] && !loadingH2hCorners[fixtureId]) {
           // Usar setTimeout para evitar dependência circular
           setTimeout(() => loadH2hCornerAnalysis(prediction, activeTab === 'live'), 0);
         }
@@ -131,7 +137,9 @@ const Predictions = () => {
   // Extrair ligas únicas quando os dados são carregados
   useEffect(() => {
     const allPredictions = [...predictions, ...livePredictions, ...finishedPredictions];
-    const leagues = [...new Set(allPredictions.map(p => p.fixture.league.name))];
+    const leagues = [...new Set(allPredictions
+      .filter(p => p && p.fixture && p.fixture.league && p.fixture.league.name)
+      .map(p => p.fixture.league.name))];
     setAvailableLeagues(leagues.sort());
   }, [predictions, livePredictions, finishedPredictions]);
 
@@ -156,9 +164,22 @@ const Predictions = () => {
         axios.get(`/api/predictions/finished${forceRefresh ? '?refresh=true' : ''}`)
       ]);
 
-      setPredictions(todayResponse.data.data || []);
-      setLivePredictions(liveResponse.data.data || []);
-      setFinishedPredictions(finishedResponse.data.data || []); // Carregar jogos finalizados
+      const todayData = todayResponse.data.data || [];
+      const liveData = liveResponse.data.data || [];
+      const finishedData = finishedResponse.data.data || [];
+
+      console.log('📊 Dados carregados:', {
+        today: todayData.length,
+        live: liveData.length,
+        finished: finishedData.length,
+        todaySample: todayData.slice(0, 2),
+        liveSample: liveData.slice(0, 2),
+        finishedSample: finishedData.slice(0, 2)
+      });
+
+      setPredictions(todayData);
+      setLivePredictions(liveData);
+      setFinishedPredictions(finishedData); // Carregar jogos finalizados
       
       // Verificar se os dados vieram do cache
       const fromCacheToday = todayResponse.data.fromCache;
@@ -212,9 +233,20 @@ const Predictions = () => {
       const response = await axios.get(`/api/fixtures/upcoming${forceRefresh ? '?refresh=true' : ''}`);
       
       if (response.data.success && response.data.data) {
+        const todayFixtures = response.data.data.today?.fixtures || [];
+        const tomorrowFixtures = response.data.data.tomorrow?.fixtures || [];
+        
+        console.log('📅 Próximas fixtures carregadas:', {
+          today: todayFixtures.length,
+          tomorrow: tomorrowFixtures.length,
+          todaySample: todayFixtures.slice(0, 2),
+          tomorrowSample: tomorrowFixtures.slice(0, 2),
+          fromCache: response.data.fromCache
+        });
+        
         setUpcomingFixtures({
-          today: response.data.data.today?.fixtures || [],
-          tomorrow: response.data.data.tomorrow?.fixtures || []
+          today: todayFixtures,
+          tomorrow: tomorrowFixtures
         });
         setFixturesFromCache(response.data.fromCache || false);
         
@@ -761,10 +793,20 @@ const Predictions = () => {
   const filterPredictions = (predictionList) => {
     // Se não há predições para filtrar, retornar array vazio
     if (!predictionList || predictionList.length === 0) {
+      console.log('🔍 filterPredictions: Lista vazia ou nula');
       return [];
     }
 
-    return predictionList.filter(prediction => {
+    console.log('🔍 filterPredictions:', {
+      totalPredictions: predictionList.length,
+      searchTerm,
+      confidenceFilter,
+      leagueFilter,
+      marketFilter,
+      statusFilter
+    });
+
+    const filtered = predictionList.filter(prediction => {
       // Verificar se a predição tem a estrutura esperada
       if (!prediction || !prediction.fixture || !prediction.fixture.teams) {
         return false;
@@ -793,8 +835,29 @@ const Predictions = () => {
         (statusFilter === 'active' && isFixtureActive(prediction.fixture)) ||
         (statusFilter === 'finished' && !isFixtureActive(prediction.fixture));
 
-      return matchesSearch && matchesConfidence && matchesLeague && matchesMarket && matchesStatus;
+      const matches = matchesSearch && matchesConfidence && matchesLeague && matchesMarket && matchesStatus;
+      
+      if (!matches) {
+        console.log('🔍 Prediction filtrada:', {
+          fixture: `${prediction.fixture.teams.home?.name} vs ${prediction.fixture.teams.away?.name}`,
+          search: matchesSearch,
+          confidence: matchesConfidence,
+          league: matchesLeague,
+          market: matchesMarket,
+          status: matchesStatus
+        });
+      }
+
+      return matches;
     });
+
+    console.log('🔍 filterPredictions resultado:', {
+      original: predictionList.length,
+      filtered: filtered.length,
+      removed: predictionList.length - filtered.length
+    });
+
+    return filtered;
   };
 
   const getConfidenceColor = (confidence) => {
@@ -812,6 +875,24 @@ const Predictions = () => {
       case 'média': return '⚖️';
       case 'baixa': return '⚠️';
       default: return '❓';
+    }
+  };
+
+  const getRiskLevelColor = (riskLevel) => {
+    switch (riskLevel) {
+      case 'baixo': return 'text-green-600 bg-green-100';
+      case 'médio': return 'text-yellow-600 bg-yellow-100';
+      case 'alto': return 'text-red-600 bg-red-100';
+      default: return 'text-gray-600 bg-gray-100';
+    }
+  };
+
+  const getRiskLevelIcon = (riskLevel) => {
+    switch (riskLevel) {
+      case 'baixo': return '🟢';
+      case 'médio': return '🟡';
+      case 'alto': return '🔴';
+      default: return '⚪';
     }
   };
 
@@ -874,9 +955,24 @@ const Predictions = () => {
 
   const clearCache = async () => {
     try {
+      // Limpar dados da tela primeiro
+      console.log('🗑️ Limpando dados da tela...');
+      setPredictions([]);
+      setLivePredictions([]);
+      setFinishedPredictions([]);
+      setUpcomingFixtures({ today: [], tomorrow: [] });
+      setFromCache(false);
+      setLastUpdate(null);
+      
+      // Limpar cache no backend
       await axios.post('/api/predictions/clear-cache');
-      alert('Cache limpo com sucesso!');
-      loadPredictions(); // Recarregar dados
+      console.log('✅ Cache limpo com sucesso!');
+      
+      // Mostrar mensagem de sucesso
+      alert('Cache limpo com sucesso! Clique em "Atualizar" para buscar novos dados.');
+      
+      // NÃO recarregar dados automaticamente - deixar tela vazia até usuário clicar em "Atualizar"
+      
     } catch (error) {
       console.error('Erro ao limpar cache:', error);
       alert('Erro ao limpar cache');
@@ -1054,9 +1150,16 @@ const Predictions = () => {
 
 
 
-  // Função para renderizar próximos jogos
+  // Função para renderizar próximos jogos - CORRIGIDA
   const renderUpcomingFixtures = () => {
     const allFixtures = [...upcomingFixtures.today, ...upcomingFixtures.tomorrow];
+    
+    console.log('🔍 Renderizando próximos jogos:', {
+      totalFixtures: allFixtures.length,
+      todayFixtures: upcomingFixtures.today.length,
+      tomorrowFixtures: upcomingFixtures.tomorrow.length,
+      sampleFixtures: allFixtures.slice(0, 3)
+    });
     
     if (loadingFixtures) {
       return (
@@ -1077,8 +1180,14 @@ const Predictions = () => {
 
     // Filtrar apenas jogos realmente próximos (não ao vivo e não finalizados)
     const upcomingOnlyFixtures = allFixtures.filter(fixture => 
-      fixture.isUpcoming && !fixture.isLive && !fixture.isFinished
+      fixture && fixture.isUpcoming && !fixture.isLive && !fixture.isFinished
     );
+
+    console.log('🔍 Fixtures filtradas:', {
+      total: allFixtures.length,
+      upcomingOnly: upcomingOnlyFixtures.length,
+      filteredOut: allFixtures.length - upcomingOnlyFixtures.length
+    });
 
     if (upcomingOnlyFixtures.length === 0) {
       return (
@@ -1096,12 +1205,14 @@ const Predictions = () => {
 
     // Separar jogos de hoje e amanhã dos dados filtrados
     const todayFixtures = sortedFixtures.filter(fixture => {
+      if (!fixture || !fixture.date) return false;
       const fixtureDate = new Date(fixture.date);
       const today = new Date();
       return fixtureDate.toDateString() === today.toDateString();
     });
 
     const tomorrowFixtures = sortedFixtures.filter(fixture => {
+      if (!fixture || !fixture.date) return false;
       const fixtureDate = new Date(fixture.date);
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
@@ -1481,6 +1592,12 @@ const Predictions = () => {
   };
 
   const renderPredictionCard = (prediction, isLive = false) => {
+    // Verificar se prediction e fixture existem
+    if (!prediction || !prediction.fixture || !prediction.fixture.fixture || !prediction.fixture.fixture.id) {
+      console.warn('⚠️ Prediction inválida no renderPredictionCard:', prediction);
+      return null; // Não renderizar nada
+    }
+    
     const { fixture, prediction: predData, confidence, recommendation } = prediction;
     const { teams, league, fixture: fixtureData } = fixture;
     const marketType = getMarketType(prediction);
@@ -1526,6 +1643,20 @@ const Predictions = () => {
               <span>{getConfidenceIcon(confidence)}</span>
               {confidence.toUpperCase()}
             </div>
+                            {prediction.riskLevel && (
+                  <div className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${getRiskLevelColor(prediction.riskLevel)}`}>
+                    <span>{getRiskLevelIcon(prediction.riskLevel)}</span>
+                    Nível: {prediction.riskLevel.toUpperCase()}
+                  </div>
+                )}
+                
+                {/* 🚀 NOVO: Score Avançado */}
+                {prediction.analysis?.advancedScore && (
+                  <div className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                    <span>📊</span>
+                    Score: {Math.round(prediction.analysis.advancedScore * 100)}%
+                  </div>
+                )}
             <div className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${getMarketTypeColor(marketType)}`}>
               <span>{getMarketTypeLabel(marketType)}</span>
             </div>
@@ -1594,7 +1725,7 @@ const Predictions = () => {
 
 
             {/* Odds Section */}
-            {renderOddsSection(fixture.fixture.id, marketType, isLive)}
+            {fixture.fixture && fixture.fixture.id && renderOddsSection(fixture.fixture.id, marketType, isLive)}
             
         {/* Análise H2H de Corner Kicks Section */}
         <H2hCornerAnalysisSection
@@ -1638,11 +1769,23 @@ const Predictions = () => {
     ? upcomingFixtures.today.length + upcomingFixtures.tomorrow.length
     : filteredPredictions.length;
   
-  // Contadores específicos por aba
-  const upcomingCount = (upcomingFixtures.today.filter(f => f.isUpcoming && !f.isLive && !f.isFinished).length) + 
-                       (upcomingFixtures.tomorrow.filter(f => f.isUpcoming && !f.isLive && !f.isFinished).length);
+  // Contadores específicos por aba - CORRIGIDO
+  const upcomingCount = (upcomingFixtures.today.filter(f => f && f.isUpcoming && !f.isLive && !f.isFinished).length) + 
+                       (upcomingFixtures.tomorrow.filter(f => f && f.isUpcoming && !f.isLive && !f.isFinished).length);
   const liveCount = livePredictions.length;
   const finishedCount = finishedPredictions.length; // Usar dados específicos de jogos finalizados
+  
+  // Log dos contadores para debug
+  console.log('📊 Contadores das abas:', {
+    upcoming: {
+      total: upcomingCount,
+      today: upcomingFixtures.today.filter(f => f && f.isUpcoming && !f.isLive && !f.isFinished).length,
+      tomorrow: upcomingFixtures.tomorrow.filter(f => f && f.isUpcoming && !f.isLive && !f.isFinished).length
+    },
+    live: liveCount,
+    finished: finishedCount,
+    predictions: predictions.length
+  });
   const activeFilters = [searchTerm, confidenceFilter, leagueFilter, marketFilter, statusFilter].filter(f => f !== 'all').length;
 
   return (
