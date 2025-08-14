@@ -289,10 +289,10 @@ const AddBetButton = ({ prediction, onBetAdded, h2hData }) => {
     <>
       <button
         onClick={() => setShowModal(true)}
-        className="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm"
+        className="px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white shadow-sm hover:shadow-md transform hover:scale-105"
         title="Adicionar às Minhas Apostas"
       >
-        <FaBookmark />
+        <FaBookmark className="text-xs" />
         Adicionar
       </button>
 

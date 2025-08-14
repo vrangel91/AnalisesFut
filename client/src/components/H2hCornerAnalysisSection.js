@@ -7,7 +7,53 @@ const H2hCornerAnalysisSection = ({
   loadingH2hCorners, 
   loadH2hCornerAnalysis 
 }) => {
-  const fixtureId = fixture.fixture.id;
+  // Log para debug
+  console.log('🔍 H2hCornerAnalysisSection - fixture:', fixture);
+  
+  // Extrair fixtureId de forma mais robusta
+  const getFixtureId = () => {
+    if (!fixture) {
+      console.warn('⚠️ Fixture é null ou undefined');
+      return null;
+    }
+    
+    // Verificar diferentes estruturas possíveis
+    if (fixture.fixture && fixture.fixture.id) {
+      console.log('✅ ID encontrado em fixture.fixture.id:', fixture.fixture.id);
+      return fixture.fixture.id;
+    }
+    
+    if (fixture.id) {
+      console.log('✅ ID encontrado em fixture.id:', fixture.id);
+      return fixture.id;
+    }
+    
+    // Se não encontrar ID, log da estrutura completa
+    console.warn('⚠️ ID não encontrado. Estrutura da fixture:', JSON.stringify(fixture, null, 2));
+    return null;
+  };
+
+  const fixtureId = getFixtureId();
+  
+  // Se não conseguir extrair o ID, mostrar mensagem de erro mais informativa
+  if (!fixtureId) {
+    return (
+      <div className="bg-red-50 p-3 rounded-lg border border-red-200">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-red-600">⚠️</span>
+          <span className="font-medium text-red-700">Erro na Análise H2H</span>
+        </div>
+        <p className="text-sm text-red-600">ID da fixture não encontrado</p>
+        <details className="mt-2">
+          <summary className="text-xs text-red-500 cursor-pointer">Ver detalhes da fixture</summary>
+          <pre className="text-xs text-red-500 mt-1 bg-red-100 p-2 rounded overflow-auto max-h-20">
+            {JSON.stringify(fixture, null, 2)}
+          </pre>
+        </details>
+      </div>
+    );
+  }
+
   const analysis = h2hCornerAnalysis[fixtureId];
   const isLoading = loadingH2hCorners[fixtureId];
 

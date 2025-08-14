@@ -121,6 +121,40 @@ const Predictions = () => {
     }
   }, [activeTab, autoLoadH2hCornersToday, upcomingFixtures.today.length, hasLoadedInitialData]);
 
+  // Carregar automaticamente análise H2H de corner kicks para jogos ao vivo
+  useEffect(() => {
+    if (activeTab === 'live' && autoLoadH2hCorners && livePredictions.length > 0) {
+      const fixturesToLoad = livePredictions.slice(0, 5); // Carregar apenas os primeiros 5
+      
+      fixturesToLoad.forEach(prediction => {
+        if (prediction && prediction.fixture && prediction.fixture.fixture && prediction.fixture.fixture.id) {
+          const fixtureId = prediction.fixture.fixture.id;
+          if (!h2hCornerAnalysis[fixtureId] && !loadingH2hCorners[fixtureId]) {
+            // Usar setTimeout para evitar dependência circular
+            setTimeout(() => loadH2hCornerAnalysis(prediction.fixture, true), 0);
+          }
+        }
+      });
+    }
+  }, [activeTab, autoLoadH2hCorners, livePredictions.length]);
+
+  // Carregar automaticamente análise H2H de corner kicks para jogos finalizados
+  useEffect(() => {
+    if (activeTab === 'finished' && autoLoadH2hCorners && finishedPredictions.length > 0) {
+      const fixturesToLoad = finishedPredictions.slice(0, 5); // Carregar apenas os primeiros 5
+      
+      fixturesToLoad.forEach(prediction => {
+        if (prediction && prediction.fixture && prediction.fixture.fixture && prediction.fixture.fixture.id) {
+          const fixtureId = prediction.fixture.fixture.id;
+          if (!h2hCornerAnalysis[fixtureId] && !loadingH2hCorners[fixtureId]) {
+            // Usar setTimeout para evitar dependência circular
+            setTimeout(() => loadH2hCornerAnalysis(prediction.fixture, false), 0);
+          }
+        }
+      });
+    }
+  }, [activeTab, autoLoadH2hCorners, finishedPredictions.length]);
+
   // Carregar automaticamente análise IA de gols para fixtures da aba Hoje
   useEffect(() => {
     if (activeTab === 'upcoming' && autoLoadAiAnalysisToday && upcomingFixtures.today.length > 0 && !hasLoadedInitialData) {
@@ -269,12 +303,15 @@ const Predictions = () => {
   // Função para buscar análise H2H de corner kicks
   const loadH2hCornerAnalysis = async (fixture, isLive = false) => {
     // Verificar se fixture existe e tem a estrutura correta
-    if (!fixture || !fixture.fixture || !fixture.fixture.id) {
+    // Para jogos próximos: fixture.id
+    // Para jogos ao vivo/finalizados: fixture.fixture.id
+    const fixtureId = fixture?.fixture?.id || fixture?.id;
+    
+    if (!fixture || !fixtureId) {
       console.warn('Fixture inválida para análise H2H:', fixture);
       return;
     }
     
-    const fixtureId = fixture.fixture.id;
     if (h2hCornerAnalysis[fixtureId] || loadingH2hCorners[fixtureId]) return;
 
     try {
@@ -299,12 +336,15 @@ const Predictions = () => {
   // Função para carregar análise H2H de corner kicks para fixtures da aba Próximos Jogos
   const loadH2hCornerAnalysisToday = async (fixture, dayType) => {
     // Verificar se fixture existe e tem ID
-    if (!fixture || !fixture.id) {
+    // Para jogos próximos: fixture.id
+    // Para jogos ao vivo/finalizados: fixture.fixture.id
+    const fixtureId = fixture?.fixture?.id || fixture?.id;
+    
+    if (!fixture || !fixtureId) {
       console.warn('Fixture inválida para análise H2H Today:', fixture);
       return;
     }
     
-    const fixtureId = fixture.id;
     if (h2hCornerAnalysisToday[fixtureId] || loadingH2hCornersToday[fixtureId]) return;
 
     try {
@@ -498,7 +538,7 @@ const Predictions = () => {
   // Função para carregar análise IA de gols para fixtures da aba Próximos Jogos
   const loadAiAnalysisToday = async (fixture, dayType) => {
     const fixtureId = fixture.id;
-    if (aiAnalysisToday[fixtureId] || loadingAiAnalysisToday[fixtureId]) return;
+    if (aiAnalysisToday[fixtureId] || loadingAiAnalysisToday[fixture.id]) return;
 
     try {
       setLoadingAiAnalysisToday(prev => ({ ...prev, [fixtureId]: true }));
@@ -1299,6 +1339,12 @@ const Predictions = () => {
 
   // Função para renderizar card de fixture
   const renderFixtureCard = (fixture, dayType) => {
+    // Verificação de segurança
+    if (!fixture) {
+      console.warn('⚠️ Fixture é null ou undefined em renderFixtureCard');
+      return null;
+    }
+    
     const isToday = dayType === 'today';
     const isLive = fixture.isLive;
     const isFinished = fixture.isFinished;
@@ -1505,99 +1551,30 @@ const Predictions = () => {
 
         {/* Análise H2H de Corner Kicks */}
         <div className="mt-3 pt-3 border-t border-gray-200">
-          <div className="mb-3">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-purple-700">📊 Análise H2H Corner Kicks</span>
-              <button
-                onClick={() => loadH2hCornerAnalysisToday(fixture, dayType)}
-                disabled={loadingH2hCornersToday[fixture.id]}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1.5 ${
-                  loadingH2hCornersToday[fixture.id]
-                    ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
-                    : 'bg-purple-500 hover:bg-purple-600 text-white shadow-sm hover:shadow-md transform hover:scale-105'
-                }`}
-              >
-                {loadingH2hCornersToday[fixture.id] ? (
-                  <>
-                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-500"></div>
-                    Carregando...
-                  </>
-                ) : (
-                  <>
-                    <span>📊</span>
-                    Analisar H2H
-                  </>
-                )}
-              </button>
+          <div className="mb-2">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-purple-600 text-lg">📊</span>
+              <span className="font-medium text-purple-700">Análise H2H Corner Kicks</span>
+              {isLive && (
+                <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full animate-pulse">
+                  AO VIVO
+                </span>
+              )}
+              {/* Remover badge "FINALIZADO" para jogos próximos - não faz sentido */}
             </div>
-            
-            {/* Exibir análise H2H se disponível */}
-            {h2hCornerAnalysisToday[fixture.id] && (
-              <div className="bg-purple-50 p-3 rounded-lg border border-purple-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-purple-600">📊</span>
-                  <span className="font-medium text-purple-700">Análise H2H Corner Kicks</span>
-                </div>
-                
-                {/* Resumo H2H */}
-                <div className="grid grid-cols-2 gap-2 mb-2 text-xs">
-                  <div className="text-center p-2 bg-white rounded border border-purple-200">
-                    <div className="text-purple-600 mb-1">Total Jogos</div>
-                    <div className="text-sm font-bold text-purple-700">
-                      {h2hCornerAnalysisToday[fixture.id].h2hAnalysis?.totalMatches || 0}
-                    </div>
-                  </div>
-                  <div className="text-center p-2 bg-white rounded border border-purple-200">
-                    <div className="text-purple-600 mb-1">Média Escanteios</div>
-                    <div className="text-sm font-bold text-purple-700">
-                      {h2hCornerAnalysisToday[fixture.id].h2hAnalysis?.cornerStats?.averageCorners?.toFixed(1) || '0.0'}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Recomendações */}
-                {h2hCornerAnalysisToday[fixture.id].h2hAnalysis?.recommendations && 
-                 h2hCornerAnalysisToday[fixture.id].h2hAnalysis.recommendations.length > 0 && (
-                  <div className="bg-gradient-to-r from-purple-100 to-blue-100 p-2 rounded border border-purple-300">
-                    <div className="text-xs font-medium text-purple-700 mb-1">🎯 Recomendações H2H:</div>
-                    <div className="space-y-1">
-                      {h2hCornerAnalysisToday[fixture.id].h2hAnalysis.recommendations.slice(0, 2).map((rec, index) => (
-                        <div key={index} className="bg-white p-1 rounded border border-purple-200 text-xs">
-                          <div className="flex items-center gap-1 mb-1">
-                            <span className={`font-bold ${
-                              rec.type === 'over' ? 'text-green-600' :
-                              rec.type === 'under' ? 'text-red-600' :
-                              'text-blue-600'
-                            }`}>
-                              {rec.market}
-                            </span>
-                            <span className={`inline-flex items-center gap-1 px-1 py-0.5 rounded-full text-xs font-medium ${
-                              rec.confidence === 'alta' ? 'bg-green-100 text-green-800' :
-                              rec.confidence === 'média' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-red-100 text-red-800'
-                            }`}>
-                              {rec.confidence.toUpperCase()}
-                            </span>
-                          </div>
-                          <div className="text-xs text-gray-700">{rec.reasoning}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Informações adicionais */}
-                <div className="flex items-center justify-between mt-2">
-                  <p className="text-xs text-purple-600">
-                    Fonte: API-SPORTS Head to Head
-                  </p>
-                  <p className="text-xs text-gray-400">
-                    {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                  </p>
-                </div>
-              </div>
-            )}
+            <p className="text-xs text-gray-500 mb-2">
+              Histórico de confrontos e estatísticas de escanteios entre os times
+            </p>
           </div>
+          {fixture && (fixture.id || (fixture.fixture && fixture.fixture.id)) && (
+            <H2hCornerAnalysisSection
+              fixture={fixture}
+              isLive={isLive}
+              h2hCornerAnalysis={h2hCornerAnalysis}
+              loadingH2hCorners={loadingH2hCorners}
+              loadH2hCornerAnalysis={loadH2hCornerAnalysis}
+            />
+          )}
         </div>
 
 
@@ -1605,12 +1582,12 @@ const Predictions = () => {
 
 
         {/* Ações */}
-        <div className="mt-3 pt-3 border-t border-gray-200">
+        <div className="mt-4 pt-4 border-t border-gray-200">
           <div className="flex justify-between items-center">
             <span className="text-xs text-gray-500">
-              {dayType === 'today' ? 'Hoje' : 'Amanhã'}
+              {isLive ? 'Ao Vivo' : 'Finalizado'}
             </span>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
               {/* Botão Predições API-Sports */}
               <button
                 onClick={() => openApiPredictionsModal(fixture)}
@@ -1785,13 +1762,32 @@ const Predictions = () => {
             {fixture.fixture && fixture.fixture.id && renderOddsSection(fixture.fixture.id, marketType, isLive)}
             
         {/* Análise H2H de Corner Kicks Section */}
-        <H2hCornerAnalysisSection
-          fixture={fixture}
-          isLive={isLive}
-          h2hCornerAnalysis={h2hCornerAnalysis}
-          loadingH2hCorners={loadingH2hCorners}
-          loadH2hCornerAnalysis={loadH2hCornerAnalysis}
-        />
+        <div className="mt-3 pt-3 border-t border-gray-200">
+          <div className="mb-2">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-purple-600 text-lg">📊</span>
+              <span className="font-medium text-purple-700">Análise H2H Corner Kicks</span>
+              {isLive && (
+                <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full animate-pulse">
+                  AO VIVO
+                </span>
+              )}
+              {/* Remover badge "FINALIZADO" para jogos próximos - não faz sentido */}
+            </div>
+            <p className="text-xs text-gray-500 mb-2">
+              Histórico de confrontos e estatísticas de escanteios entre os times
+            </p>
+          </div>
+          {fixture && (fixture.id || (fixture.fixture && fixture.fixture.id)) && (
+            <H2hCornerAnalysisSection
+              fixture={fixture}
+              isLive={isLive}
+              h2hCornerAnalysis={h2hCornerAnalysis}
+              loadingH2hCorners={loadingH2hCorners}
+              loadH2hCornerAnalysis={loadH2hCornerAnalysis}
+            />
+          )}
+        </div>
         
         {/* Botão Análise Avançada */}
         <div className="mt-3 pt-3 border-t border-gray-200">
@@ -1952,6 +1948,44 @@ const Predictions = () => {
               >
                 <span className="text-sm">🤖</span>
                 {autoLoadAiAnalysisToday ? 'Auto IA Próximos ON' : 'Auto IA Próximos OFF'}
+              </button>
+
+              <button
+                onClick={() => {
+                  if (activeTab === 'upcoming') {
+                    // Para jogos próximos, usar loadH2hCornerAnalysisToday
+                    const todayFixtures = upcomingFixtures.today.slice(0, 5);
+                    const tomorrowFixtures = upcomingFixtures.tomorrow.slice(0, 5);
+                    const allFixtures = [...todayFixtures, ...tomorrowFixtures];
+                    
+                    allFixtures.forEach(fixture => {
+                      if (fixture && fixture.id) {
+                        const fixtureId = fixture.id;
+                        if (!h2hCornerAnalysisToday[fixtureId] && !loadingH2hCornersToday[fixtureId]) {
+                          setTimeout(() => loadH2hCornerAnalysisToday(fixture, 'upcoming'), 0);
+                        }
+                      }
+                    });
+                  } else {
+                    // Para jogos ao vivo e finalizados, usar loadH2hCornerAnalysis
+                    const currentPredictions = activeTab === 'live' ? livePredictions : activeTab === 'finished' ? finishedPredictions : [];
+                    const fixturesToLoad = currentPredictions.slice(0, 5);
+                    
+                    fixturesToLoad.forEach(prediction => {
+                      if (prediction && prediction.fixture && prediction.fixture.fixture && prediction.fixture.fixture.id) {
+                        const fixtureId = prediction.fixture.fixture.id;
+                        if (!h2hCornerAnalysis[fixtureId] && !loadingH2hCorners[fixtureId]) {
+                          setTimeout(() => loadH2hCornerAnalysis(prediction.fixture, activeTab === 'live'), 0);
+                        }
+                      }
+                    });
+                  }
+                }}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm flex items-center gap-2"
+                title="Carregar análise H2H para jogos da aba atual"
+              >
+                <span className="text-sm">📊</span>
+                Carregar H2H {activeTab === 'upcoming' ? 'Próximos' : activeTab === 'live' ? 'Ao Vivo' : activeTab === 'finished' ? 'Finalizados' : ''}
               </button>
 
 
@@ -2358,36 +2392,69 @@ const Predictions = () => {
                 ) : advancedAnalysisData ? (
                   <div className="space-y-6">
                     {/* Resumo Executivo */}
-                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-lg border border-indigo-200">
-                      <h3 className="text-lg font-semibold text-indigo-900 mb-4 flex items-center gap-2">
-                        📊 Resumo Executivo
+                    <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-blue-50 p-8 rounded-xl border-2 border-purple-200 shadow-lg">
+                      <h3 className="text-2xl font-bold text-purple-900 mb-6 flex items-center gap-3">
+                        <span className="text-3xl">📊</span>
+                        <span className="bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                          Resumo Executivo
+                        </span>
                       </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         {advancedAnalysisData.riskAssessment && (
-                          <div className="bg-white p-4 rounded-lg border border-indigo-200">
-                            <div className="text-sm text-gray-600 mb-1">Nível de Risco</div>
-                            <div className="text-2xl font-bold text-indigo-600">
+                          <div className="bg-white p-6 rounded-xl border border-purple-200 shadow-md hover:shadow-lg transition-shadow">
+                            <div className="text-base font-semibold text-purple-700 mb-2 flex items-center gap-2">
+                              <span className="text-xl">⚠️</span>
+                              Nível de Risco
+                            </div>
+                            <div className="text-3xl font-bold text-purple-600 mb-2">
                               {advancedAnalysisData.riskAssessment.level}
                             </div>
-                            <div className="text-xs text-gray-500 mt-1">
+                            <div className="text-sm text-purple-500 font-medium">
                               Score: {advancedAnalysisData.riskAssessment.score}/100
                             </div>
+                            {advancedAnalysisData.riskAssessment.recommendation && (
+                              <div className="mt-3 p-2 bg-purple-50 rounded-lg">
+                                <div className="text-xs font-semibold text-purple-700">
+                                  {advancedAnalysisData.riskAssessment.recommendation}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
                         {advancedAnalysisData.bettingInsights && (
-                          <div className="bg-white p-4 rounded-lg border border-indigo-200">
-                            <div className="text-sm text-gray-600 mb-1">Confiança</div>
-                            <div className="text-2xl font-bold text-green-600">
+                          <div className="bg-white p-6 rounded-xl border border-green-200 shadow-md hover:shadow-lg transition-shadow">
+                            <div className="text-base font-semibold text-green-700 mb-2 flex items-center gap-2">
+                              <span className="text-xl">🎯</span>
+                              Confiança
+                            </div>
+                            <div className="text-3xl font-bold text-green-600 mb-2">
                               {advancedAnalysisData.bettingInsights.confidence}
                             </div>
+                            {advancedAnalysisData.bettingInsights.recommendation && (
+                              <div className="mt-3 p-2 bg-green-50 rounded-lg">
+                                <div className="text-xs font-semibold text-green-700">
+                                  {advancedAnalysisData.bettingInsights.recommendation}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
                         {advancedAnalysisData.overUnderAnalysis && (
-                          <div className="bg-white p-4 rounded-lg border border-indigo-200">
-                            <div className="text-sm text-gray-600 mb-1">Média de Gols</div>
-                            <div className="text-2xl font-bold text-blue-600">
+                          <div className="bg-white p-6 rounded-xl border border-blue-200 shadow-md hover:shadow-lg transition-shadow">
+                            <div className="text-base font-semibold text-blue-700 mb-2 flex items-center gap-2">
+                              <span className="text-xl">⚽</span>
+                              Média de Gols
+                            </div>
+                            <div className="text-3xl font-bold text-blue-600 mb-2">
                               {advancedAnalysisData.overUnderAnalysis.averageGoals?.toFixed(1) || 'N/A'}
                             </div>
+                            {advancedAnalysisData.overUnderAnalysis.recommendation && (
+                              <div className="mt-3 p-2 bg-blue-50 rounded-lg">
+                                <div className="text-xs font-semibold text-blue-700">
+                                  {advancedAnalysisData.overUnderAnalysis.recommendation}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -2395,58 +2462,90 @@ const Predictions = () => {
 
                     {/* Análise de Ataque */}
                     {advancedAnalysisData.attackAnalysis && (
-                      <div className="bg-white p-6 rounded-lg border border-gray-200">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                          ⚽ Análise de Ataque
+                      <div className="bg-gradient-to-br from-orange-50 to-red-50 p-8 rounded-xl border-2 border-orange-200 shadow-lg">
+                        <h3 className="text-2xl font-bold text-orange-900 mb-6 flex items-center gap-3">
+                          <span className="text-3xl">⚽</span>
+                          <span className="bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
+                            Análise de Ataque
+                          </span>
                         </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div>
-                            <h4 className="font-medium text-gray-800 mb-3">Time da Casa</h4>
-                            <div className="space-y-2 text-sm">
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Taxa de Conversão:</span>
-                                <span className="font-medium">{advancedAnalysisData.attackAnalysis.home?.conversionRate?.toFixed(1) || 'N/A'}%</span>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                          {/* Time da Casa */}
+                          <div className="bg-white p-6 rounded-xl border border-orange-200 shadow-md">
+                            <h4 className="text-xl font-bold text-orange-800 mb-4 flex items-center gap-2">
+                              <span className="w-3 h-3 bg-orange-500 rounded-full"></span>
+                              Time da Casa
+                            </h4>
+                            <div className="space-y-4">
+                              <div className="flex justify-between items-center p-3 bg-orange-50 rounded-lg">
+                                <span className="text-base font-semibold text-orange-700">Taxa de Conversão:</span>
+                                <span className="text-lg font-bold text-orange-600">
+                                  {advancedAnalysisData.attackAnalysis.home?.conversionRate?.toFixed(1) || 'N/A'}%
+                                </span>
                               </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Chutes por Jogo:</span>
-                                <span className="font-medium">{advancedAnalysisData.attackAnalysis.home?.shotsPerGame?.toFixed(1) || 'N/A'}</span>
+                              <div className="flex justify-between items-center p-3 bg-orange-50 rounded-lg">
+                                <span className="text-base font-semibold text-orange-700">Chutes por Jogo:</span>
+                                <span className="text-lg font-bold text-orange-600">
+                                  {advancedAnalysisData.attackAnalysis.home?.shotsPerGame?.toFixed(1) || 'N/A'}
+                                </span>
                               </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Finalizações no Alvo:</span>
-                                <span className="font-medium">{advancedAnalysisData.attackAnalysis.home?.shotsOnTarget?.toFixed(1) || 'N/A'}</span>
+                              <div className="flex justify-between items-center p-3 bg-orange-50 rounded-lg">
+                                <span className="text-base font-semibold text-orange-700">Finalizações no Alvo:</span>
+                                <span className="text-lg font-bold text-orange-600">
+                                  {advancedAnalysisData.attackAnalysis.home?.shotsOnTarget?.toFixed(1) || 'N/A'}
+                                </span>
                               </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Classificação:</span>
-                                <span className="font-medium text-blue-600">{advancedAnalysisData.attackAnalysis.home?.strength || 'N/A'}</span>
+                              <div className="flex justify-between items-center p-3 bg-gradient-to-r from-orange-100 to-red-100 rounded-lg border border-orange-300">
+                                <span className="text-base font-semibold text-orange-800">Classificação:</span>
+                                <span className="text-lg font-bold text-orange-700 px-3 py-1 bg-orange-200 rounded-full">
+                                  {advancedAnalysisData.attackAnalysis.home?.strength || 'N/A'}
+                                </span>
                               </div>
                             </div>
                           </div>
-                          <div>
-                            <h4 className="font-medium text-gray-800 mb-3">Time Visitante</h4>
-                            <div className="space-y-2 text-sm">
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Taxa de Conversão:</span>
-                                <span className="font-medium">{advancedAnalysisData.attackAnalysis.away?.conversionRate?.toFixed(1) || 'N/A'}%</span>
+                          
+                          {/* Time Visitante */}
+                          <div className="bg-white p-6 rounded-xl border border-red-200 shadow-md">
+                            <h4 className="text-xl font-bold text-red-800 mb-4 flex items-center gap-2">
+                              <span className="w-3 h-3 bg-red-500 rounded-full"></span>
+                              Time Visitante
+                            </h4>
+                            <div className="space-y-4">
+                              <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
+                                <span className="text-base font-semibold text-red-700">Taxa de Conversão:</span>
+                                <span className="text-lg font-bold text-red-600">
+                                  {advancedAnalysisData.attackAnalysis.away?.conversionRate?.toFixed(1) || 'N/A'}%
+                                </span>
                               </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Chutes por Jogo:</span>
-                                <span className="font-medium">{advancedAnalysisData.attackAnalysis.away?.shotsPerGame?.toFixed(1) || 'N/A'}</span>
+                              <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
+                                <span className="text-base font-semibold text-red-700">Chutes por Jogo:</span>
+                                <span className="text-lg font-bold text-red-600">
+                                  {advancedAnalysisData.attackAnalysis.away?.shotsPerGame?.toFixed(1) || 'N/A'}
+                                </span>
                               </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Finalizações no Alvo:</span>
-                                <span className="font-medium">{advancedAnalysisData.attackAnalysis.away?.shotsOnTarget?.toFixed(1) || 'N/A'}</span>
+                              <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
+                                <span className="text-base font-semibold text-red-700">Finalizações no Alvo:</span>
+                                <span className="text-lg font-bold text-red-600">
+                                  {advancedAnalysisData.attackAnalysis.away?.shotsOnTarget?.toFixed(1) || 'N/A'}
+                                </span>
                               </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Classificação:</span>
-                                <span className="font-medium text-blue-600">{advancedAnalysisData.attackAnalysis.away?.strength || 'N/A'}</span>
+                              <div className="flex justify-between items-center p-3 bg-gradient-to-r from-red-100 to-pink-100 rounded-lg border border-red-300">
+                                <span className="text-base font-semibold text-red-800">Classificação:</span>
+                                <span className="text-lg font-bold text-red-700 px-3 py-1 bg-red-200 rounded-full">
+                                  {advancedAnalysisData.attackAnalysis.away?.strength || 'N/A'}
+                                </span>
                               </div>
                             </div>
                           </div>
                         </div>
+                        
                         {advancedAnalysisData.attackAnalysis.insights && (
-                          <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                            <div className="text-sm font-medium text-blue-800 mb-1">💡 Insights:</div>
-                            <p className="text-sm text-blue-700">{advancedAnalysisData.attackAnalysis.insights}</p>
+                          <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200">
+                            <div className="text-base font-bold text-blue-800 mb-2 flex items-center gap-2">
+                              <span className="text-xl">💡</span>
+                              Insights de Ataque
+                            </div>
+                            <p className="text-base text-blue-700 leading-relaxed">{advancedAnalysisData.attackAnalysis.insights}</p>
                           </div>
                         )}
                       </div>
@@ -2454,58 +2553,102 @@ const Predictions = () => {
 
                     {/* Análise de Defesa */}
                     {advancedAnalysisData.defenseAnalysis && (
-                      <div className="bg-white p-6 rounded-lg border border-gray-200">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                          🛡️ Análise de Defesa
+                      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-8 rounded-xl border-2 border-blue-200 shadow-lg">
+                        <h3 className="text-2xl font-bold text-blue-900 mb-6 flex items-center gap-3">
+                          <span className="text-3xl">🛡️</span>
+                          <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                            Análise de Defesa
+                          </span>
                         </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div>
-                            <h4 className="font-medium text-gray-800 mb-3">Time da Casa</h4>
-                            <div className="space-y-2 text-sm">
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Gols Sofridos:</span>
-                                <span className="font-medium">{advancedAnalysisData.defenseAnalysis.home?.goalsConceded?.toFixed(1) || 'N/A'}</span>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                          {/* Time da Casa */}
+                          <div className="bg-white p-6 rounded-xl border border-blue-200 shadow-md">
+                            <h4 className="text-xl font-bold text-blue-800 mb-4 flex items-center gap-2">
+                              <span className="w-3 h-3 bg-blue-500 rounded-full"></span>
+                              Time da Casa
+                            </h4>
+                            <div className="space-y-4">
+                              <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                                <span className="text-base font-semibold text-blue-700">Gols Sofridos:</span>
+                                <span className="text-lg font-bold text-blue-600">
+                                  {advancedAnalysisData.defenseAnalysis.home?.goalsConceded?.toFixed(1) || 'N/A'}
+                                </span>
                               </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Escanteios Cedidos:</span>
-                                <span className="font-medium">{advancedAnalysisData.defenseAnalysis.home?.cornersConceded?.toFixed(1) || 'N/A'}</span>
+                              <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                                <span className="text-base font-semibold text-blue-700">Escanteios Cedidos:</span>
+                                <span className="text-lg font-bold text-blue-600">
+                                  {advancedAnalysisData.defenseAnalysis.home?.cornersConceded?.toFixed(1) || 'N/A'}
+                                </span>
                               </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Faltas Cometidas:</span>
-                                <span className="font-medium">{advancedAnalysisData.defenseAnalysis.home?.foulsCommitted?.toFixed(1) || 'N/A'}</span>
+                              <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                                <span className="text-base font-semibold text-blue-700">Faltas Cometidas:</span>
+                                <span className="text-lg font-bold text-blue-600">
+                                  {advancedAnalysisData.defenseAnalysis.home?.foulsCommitted?.toFixed(1) || 'N/A'}
+                                </span>
                               </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Eficiência:</span>
-                                <span className="font-medium text-green-600">{advancedAnalysisData.defenseAnalysis.home?.efficiency?.toFixed(1) || 'N/A'}%</span>
+                              <div className="flex justify-between items-center p-3 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-lg border border-blue-300">
+                                <span className="text-base font-semibold text-blue-800">Eficiência:</span>
+                                <span className="text-lg font-bold text-blue-700 px-3 py-1 bg-blue-200 rounded-full">
+                                  {advancedAnalysisData.defenseAnalysis.home?.defensiveEfficiency?.toFixed(1) || 'N/A'}%
+                                </span>
+                              </div>
+                              <div className="flex justify-between items-center p-3 bg-gradient-to-r from-green-100 to-emerald-100 rounded-lg border border-green-300">
+                                <span className="text-base font-semibold text-green-800">Classificação:</span>
+                                <span className="text-lg font-bold text-green-700 px-3 py-1 bg-green-200 rounded-full">
+                                  {advancedAnalysisData.defenseAnalysis.home?.strength || 'N/A'}
+                                </span>
                               </div>
                             </div>
                           </div>
-                          <div>
-                            <h4 className="font-medium text-gray-800 mb-3">Time Visitante</h4>
-                            <div className="space-y-2 text-sm">
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Gols Sofridos:</span>
-                                <span className="font-medium">{advancedAnalysisData.defenseAnalysis.away?.goalsConceded?.toFixed(1) || 'N/A'}</span>
+                          
+                          {/* Time Visitante */}
+                          <div className="bg-white p-6 rounded-xl border border-indigo-200 shadow-md">
+                            <h4 className="text-xl font-bold text-indigo-800 mb-4 flex items-center gap-2">
+                              <span className="w-3 h-3 bg-indigo-500 rounded-full"></span>
+                              Time Visitante
+                            </h4>
+                            <div className="space-y-4">
+                              <div className="flex justify-between items-center p-3 bg-indigo-50 rounded-lg">
+                                <span className="text-base font-semibold text-indigo-700">Gols Sofridos:</span>
+                                <span className="text-lg font-bold text-indigo-600">
+                                  {advancedAnalysisData.defenseAnalysis.away?.goalsConceded?.toFixed(1) || 'N/A'}
+                                </span>
                               </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Escanteios Cedidos:</span>
-                                <span className="font-medium">{advancedAnalysisData.defenseAnalysis.away?.cornersConceded?.toFixed(1) || 'N/A'}</span>
+                              <div className="flex justify-between items-center p-3 bg-indigo-50 rounded-lg">
+                                <span className="text-base font-semibold text-indigo-700">Escanteios Cedidos:</span>
+                                <span className="text-lg font-bold text-indigo-600">
+                                  {advancedAnalysisData.defenseAnalysis.away?.cornersConceded?.toFixed(1) || 'N/A'}
+                                </span>
                               </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Faltas Cometidas:</span>
-                                <span className="font-medium">{advancedAnalysisData.defenseAnalysis.away?.foulsCommitted?.toFixed(1) || 'N/A'}</span>
+                              <div className="flex justify-between items-center p-3 bg-indigo-50 rounded-lg">
+                                <span className="text-base font-semibold text-indigo-700">Faltas Cometidas:</span>
+                                <span className="text-lg font-bold text-indigo-600">
+                                  {advancedAnalysisData.defenseAnalysis.away?.foulsCommitted?.toFixed(1) || 'N/A'}
+                                </span>
                               </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Eficiência:</span>
-                                <span className="font-medium text-green-600">{advancedAnalysisData.defenseAnalysis.away?.efficiency?.toFixed(1) || 'N/A'}%</span>
+                              <div className="flex justify-between items-center p-3 bg-gradient-to-r from-indigo-100 to-purple-100 rounded-lg border border-indigo-300">
+                                <span className="text-base font-semibold text-indigo-800">Eficiência:</span>
+                                <span className="text-lg font-bold text-indigo-700 px-3 py-1 bg-indigo-200 rounded-full">
+                                  {advancedAnalysisData.defenseAnalysis.away?.defensiveEfficiency?.toFixed(1) || 'N/A'}%
+                                </span>
+                              </div>
+                              <div className="flex justify-between items-center p-3 bg-gradient-to-r from-green-100 to-emerald-100 rounded-lg border border-green-300">
+                                <span className="text-base font-semibold text-green-800">Classificação:</span>
+                                <span className="text-lg font-bold text-green-700 px-3 py-1 bg-green-200 rounded-full">
+                                  {advancedAnalysisData.defenseAnalysis.away?.strength || 'N/A'}
+                                </span>
                               </div>
                             </div>
                           </div>
                         </div>
+                        
                         {advancedAnalysisData.defenseAnalysis.insights && (
-                          <div className="mt-4 p-3 bg-green-50 rounded-lg border border-green-200">
-                            <div className="text-sm font-medium text-green-800 mb-1">💡 Insights:</div>
-                            <p className="text-sm text-green-700">{advancedAnalysisData.defenseAnalysis.insights}</p>
+                          <div className="mt-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-200">
+                            <div className="text-base font-bold text-green-800 mb-2 flex items-center gap-2">
+                              <span className="text-xl">💡</span>
+                              Insights de Defesa
+                            </div>
+                            <p className="text-base text-green-700 leading-relaxed">{advancedAnalysisData.defenseAnalysis.insights}</p>
                           </div>
                         )}
                       </div>
@@ -2513,62 +2656,104 @@ const Predictions = () => {
 
                     {/* Análise de Forma Recente */}
                     {advancedAnalysisData.formAnalysis && (
-                      <div className="bg-white p-6 rounded-lg border border-gray-200">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                          📈 Análise de Forma Recente
+                      <div className="bg-gradient-to-br from-emerald-50 to-teal-50 p-8 rounded-xl border-2 border-emerald-200 shadow-lg">
+                        <h3 className="text-2xl font-bold text-emerald-900 mb-6 flex items-center gap-3">
+                          <span className="text-3xl">📈</span>
+                          <span className="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                            Análise de Forma Recente
+                          </span>
                         </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div>
-                            <h4 className="font-medium text-gray-800 mb-3">Time da Casa</h4>
-                            <div className="space-y-2 text-sm">
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Últimos 10 jogos:</span>
-                                <span className="font-medium">{advancedAnalysisData.formAnalysis.home?.wins || 0}V {advancedAnalysisData.formAnalysis.home?.draws || 0}E {advancedAnalysisData.formAnalysis.home?.losses || 0}D</span>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                          {/* Time da Casa */}
+                          <div className="bg-white p-6 rounded-xl border border-emerald-200 shadow-md">
+                            <h4 className="text-xl font-bold text-emerald-800 mb-4 flex items-center gap-2">
+                              <span className="w-3 h-3 bg-emerald-500 rounded-full"></span>
+                              Time da Casa
+                            </h4>
+                            <div className="space-y-4">
+                              <div className="flex justify-between items-center p-3 bg-emerald-50 rounded-lg">
+                                <span className="text-base font-semibold text-emerald-700">Últimos 10 jogos:</span>
+                                <span className="text-lg font-bold text-emerald-600">
+                                  {advancedAnalysisData.formAnalysis.home?.wins || 0}V {advancedAnalysisData.formAnalysis.home?.draws || 0}E {advancedAnalysisData.formAnalysis.home?.losses || 0}D
+                                </span>
                               </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Gols Marcados:</span>
-                                <span className="font-medium">{advancedAnalysisData.formAnalysis.home?.goalsFor || 0}</span>
+                              <div className="flex justify-between items-center p-3 bg-emerald-50 rounded-lg">
+                                <span className="text-base font-semibold text-emerald-700">Gols Marcados:</span>
+                                <span className="text-lg font-bold text-emerald-600">
+                                  {advancedAnalysisData.formAnalysis.home?.goalsFor || 0}
+                                </span>
                               </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Gols Sofridos:</span>
-                                <span className="font-medium">{advancedAnalysisData.formAnalysis.home?.goalsAgainst || 0}</span>
+                              <div className="flex justify-between items-center p-3 bg-emerald-50 rounded-lg">
+                                <span className="text-base font-semibold text-emerald-700">Gols Sofridos:</span>
+                                <span className="text-lg font-bold text-emerald-600">
+                                  {advancedAnalysisData.formAnalysis.home?.goalsAgainst || 0}
+                                </span>
                               </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Forma:</span>
-                                <span className="font-medium text-blue-600">{advancedAnalysisData.formAnalysis.home?.form || 'N/A'}</span>
+                              <div className="flex justify-between items-center p-3 bg-gradient-to-r from-emerald-100 to-teal-100 rounded-lg border border-emerald-300">
+                                <span className="text-base font-semibold text-emerald-800">Forma:</span>
+                                <span className="text-lg font-bold text-emerald-700 px-3 py-1 bg-emerald-200 rounded-full">
+                                  {advancedAnalysisData.formAnalysis.home?.form || 'N/A'}
+                                </span>
                               </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Tendência:</span>
-                                <span className="font-medium text-purple-600">{advancedAnalysisData.formAnalysis.home?.trend || 'N/A'}</span>
+                              <div className="flex justify-between items-center p-3 bg-gradient-to-r from-purple-100 to-violet-100 rounded-lg border border-purple-300">
+                                <span className="text-base font-semibold text-purple-800">Tendência:</span>
+                                <span className="text-lg font-bold text-purple-700 px-3 py-1 bg-purple-200 rounded-full">
+                                  {advancedAnalysisData.formAnalysis.home?.trend || 'N/A'}
+                                </span>
                               </div>
                             </div>
                           </div>
-                          <div>
-                            <h4 className="font-medium text-gray-800 mb-3">Time Visitante</h4>
-                            <div className="space-y-2 text-sm">
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Últimos 10 jogos:</span>
-                                <span className="font-medium">{advancedAnalysisData.formAnalysis.away?.wins || 0}V {advancedAnalysisData.formAnalysis.away?.draws || 0}E {advancedAnalysisData.formAnalysis.away?.losses || 0}D</span>
+                          
+                          {/* Time Visitante */}
+                          <div className="bg-white p-6 rounded-xl border border-teal-200 shadow-md">
+                            <h4 className="text-xl font-bold text-teal-800 mb-4 flex items-center gap-2">
+                              <span className="w-3 h-3 bg-teal-500 rounded-full"></span>
+                              Time Visitante
+                            </h4>
+                            <div className="space-y-4">
+                              <div className="flex justify-between items-center p-3 bg-teal-50 rounded-lg">
+                                <span className="text-base font-semibold text-teal-700">Últimos 10 jogos:</span>
+                                <span className="text-lg font-bold text-teal-600">
+                                  {advancedAnalysisData.formAnalysis.away?.wins || 0}V {advancedAnalysisData.formAnalysis.away?.draws || 0}E {advancedAnalysisData.formAnalysis.away?.losses || 0}D
+                                </span>
                               </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Gols Marcados:</span>
-                                <span className="font-medium">{advancedAnalysisData.formAnalysis.away?.goalsFor || 0}</span>
+                              <div className="flex justify-between items-center p-3 bg-teal-50 rounded-lg">
+                                <span className="text-base font-semibold text-teal-700">Gols Marcados:</span>
+                                <span className="text-lg font-bold text-teal-600">
+                                  {advancedAnalysisData.formAnalysis.away?.goalsFor || 0}
+                                </span>
                               </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Gols Sofridos:</span>
-                                <span className="font-medium">{advancedAnalysisData.formAnalysis.away?.goalsAgainst || 0}</span>
+                              <div className="flex justify-between items-center p-3 bg-teal-50 rounded-lg">
+                                <span className="text-base font-semibold text-teal-700">Gols Sofridos:</span>
+                                <span className="text-lg font-bold text-teal-600">
+                                  {advancedAnalysisData.formAnalysis.away?.goalsAgainst || 0}
+                                </span>
                               </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Forma:</span>
-                                <span className="font-medium text-blue-600">{advancedAnalysisData.formAnalysis.away?.form || 'N/A'}</span>
+                              <div className="flex justify-between items-center p-3 bg-gradient-to-r from-teal-100 to-cyan-100 rounded-lg border border-teal-300">
+                                <span className="text-base font-semibold text-teal-800">Forma:</span>
+                                <span className="text-lg font-bold text-teal-700 px-3 py-1 bg-teal-200 rounded-full">
+                                  {advancedAnalysisData.formAnalysis.away?.form || 'N/A'}
+                                </span>
                               </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Tendência:</span>
-                                <span className="font-medium text-purple-600">{advancedAnalysisData.formAnalysis.away?.trend || 'N/A'}</span>
+                              <div className="flex justify-between items-center p-3 bg-gradient-to-r from-purple-100 to-violet-100 rounded-lg border border-purple-300">
+                                <span className="text-base font-semibold text-purple-800">Tendência:</span>
+                                <span className="text-lg font-bold text-purple-700 px-3 py-1 bg-purple-200 rounded-full">
+                                  {advancedAnalysisData.formAnalysis.away?.trend || 'N/A'}
+                                </span>
                               </div>
                             </div>
                           </div>
                         </div>
+                        
+                        {advancedAnalysisData.formAnalysis.insights && (
+                          <div className="mt-6 p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl border-2 border-emerald-200">
+                            <div className="text-base font-bold text-emerald-800 mb-2 flex items-center gap-2">
+                              <span className="text-xl">💡</span>
+                              Insights de Forma
+                            </div>
+                            <p className="text-base text-emerald-700 leading-relaxed">{advancedAnalysisData.formAnalysis.insights}</p>
+                          </div>
+                        )}
                       </div>
                     )}
 

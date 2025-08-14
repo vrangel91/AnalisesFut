@@ -245,13 +245,12 @@ router.get('/date/:date', async (req, res) => {
 
 /**
  * @route   GET /api/fixtures/statistics/:fixtureId
- * @desc    Obtém estatísticas completas de uma fixture específica
+ * @desc    Obtém estatísticas de uma fixture específica
  * @access  Public
  */
 router.get('/statistics/:fixtureId', async (req, res) => {
   try {
     const { fixtureId } = req.params;
-    const { half, team, type, refresh } = req.query;
     
     console.log(`🔍 Rota /statistics/${fixtureId} chamada`);
     
@@ -262,34 +261,29 @@ router.get('/statistics/:fixtureId', async (req, res) => {
       });
     }
 
-    const options = {};
-    if (half) options.half = half;
-    if (team) options.team = team;
-    if (type) options.type = type;
-    if (refresh === 'true') {
-      options.forceRefresh = true;
-      console.log(`🔄 Forçando atualização das estatísticas para fixture ${fixtureId}`);
-    }
+    console.log(`📊 Buscando estatísticas para fixture ${fixtureId}`);
 
-    console.log(`📊 Buscando estatísticas completas para fixture ${fixtureId} com opções:`, options);
-
-    const result = await h2hCornerAnalysisService.getFixtureStats(fixtureId, options);
-
-    if (result.success) {
+    // Usar o novo serviço de estatísticas de fixtures
+    const fixtureStatisticsService = require('../services/fixtureStatisticsService');
+    const statistics = await fixtureStatisticsService.getFixtureStatistics(parseInt(fixtureId));
+    
+    if (statistics && statistics.length > 0) {
       console.log(`✅ Estatísticas obtidas com sucesso para fixture ${fixtureId}`);
       res.json({
         success: true,
-        data: result.data,
-        source: result.source,
-        fromCache: result.source === 'cache',
-        timestamp: result.timestamp
+        data: {
+          fixtureId: parseInt(fixtureId),
+          statistics,
+          timestamp: new Date().toISOString()
+        },
+        source: 'api'
       });
     } else {
-      console.log(`⚠️ Estatísticas não disponíveis para fixture ${fixtureId}: ${result.message}`);
+      console.log(`⚠️ Estatísticas não disponíveis para fixture ${fixtureId}`);
       res.status(404).json({
         success: false,
-        error: result.message || 'Estatísticas não disponíveis para esta fixture',
-        timestamp: result.timestamp
+        error: 'Estatísticas não disponíveis para esta fixture',
+        timestamp: new Date().toISOString()
       });
     }
 

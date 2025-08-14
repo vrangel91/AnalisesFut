@@ -104,6 +104,7 @@ app.use('/api/h2h-corners', h2hCornersRoutes);
 
 // Novas rotas separadas
 app.use('/api/fixture-statistics', fixtureStatisticsRoutes);
+app.use('/api/fixtures/statistics', fixtureStatisticsRoutes);
 app.use('/api/corner-kicks', cornerKicksRoutes);
 app.use('/api/corner-kicks-statistics', cornerKicksStatisticsRoutes);
 app.use('/api/api-predictions', apiPredictionsRoutes);

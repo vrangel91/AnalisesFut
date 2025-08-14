@@ -3,56 +3,51 @@ const router = express.Router();
 const fixtureStatisticsService = require('../services/fixtureStatisticsService');
 
 /**
- * @route   GET /api/fixture-statistics/:fixtureId
- * @desc    Obtém estatísticas completas de uma fixture específica
- * @access  Public
+ * GET /api/fixtures/statistics/:fixtureId
+ * Busca estatísticas de uma fixture específica
  */
 router.get('/:fixtureId', async (req, res) => {
   try {
     const { fixtureId } = req.params;
-    const { half, team, type, refresh } = req.query;
-    
-    // Validar fixtureId
-    if (!fixtureId || isNaN(parseInt(fixtureId))) {
+    const { team, half } = req.query;
+
+    console.log(`📊 Rota: Buscando estatísticas para fixture ${fixtureId}`);
+
+    if (!fixtureId) {
       return res.status(400).json({
         success: false,
-        error: 'ID da fixture inválido'
+        error: 'ID da fixture é obrigatório'
       });
     }
 
-    console.log(`📊 Requisição de estatísticas completas para fixture ${fixtureId}`);
-    
-    // Preparar opções
-    const options = {};
-    if (half) options.half = half;
-    if (team) options.team = team;
-    if (type) options.type = type;
-    if (refresh === 'true') {
-      options.forceRefresh = true;
-      console.log('🔄 Forçando refresh das estatísticas completas');
-    }
+    const teamId = team ? parseInt(team) : null;
+    const includeHalf = half === 'true';
 
-    // Buscar estatísticas
-    const result = await fixtureStatisticsService.getFixtureStats(parseInt(fixtureId), options);
+    const statistics = await fixtureStatisticsService.getFixtureStatistics(
+      parseInt(fixtureId),
+      teamId,
+      includeHalf
+    );
 
-    if (!result.success) {
+    if (statistics.length === 0) {
       return res.status(404).json({
         success: false,
-        error: result.error,
+        error: 'Estatísticas não encontradas para esta fixture',
         fixtureId: parseInt(fixtureId)
       });
     }
 
     res.json({
       success: true,
-      data: result.data,
-      source: result.source,
-      fixtureId: parseInt(fixtureId),
-      timestamp: new Date().toISOString()
+      data: {
+        fixtureId: parseInt(fixtureId),
+        statistics,
+        timestamp: new Date().toISOString()
+      }
     });
 
   } catch (error) {
-    console.error('❌ Erro ao buscar estatísticas completas da fixture:', error.message);
+    console.error('❌ Erro na rota de estatísticas de fixture:', error.message);
     res.status(500).json({
       success: false,
       error: 'Erro interno do servidor',
@@ -62,53 +57,68 @@ router.get('/:fixtureId', async (req, res) => {
 });
 
 /**
- * @route   POST /api/fixture-statistics/refresh/:fixtureId
- * @desc    Força refresh das estatísticas completas de uma fixture
- * @access  Public
+ * GET /api/fixtures/statistics/:fixtureId/both-teams
+ * Busca estatísticas de ambos os times de uma fixture
  */
-router.post('/refresh/:fixtureId', async (req, res) => {
+router.get('/:fixtureId/both-teams', async (req, res) => {
   try {
     const { fixtureId } = req.params;
-    const { half, team, type } = req.body;
-    
-    // Validar fixtureId
-    if (!fixtureId || isNaN(parseInt(fixtureId))) {
+    const { homeTeamId, awayTeamId } = req.query;
+
+    console.log(`📊 Rota: Buscando estatísticas de ambos os times para fixture ${fixtureId}`);
+
+    if (!fixtureId || !homeTeamId || !awayTeamId) {
       return res.status(400).json({
         success: false,
-        error: 'ID da fixture inválido'
+        error: 'ID da fixture e IDs dos times são obrigatórios'
       });
     }
 
-    console.log(`🔄 Forçando refresh das estatísticas completas para fixture ${fixtureId}`);
-    
-    // Preparar opções com forceRefresh = true
-    const options = { forceRefresh: true };
-    if (half) options.half = half;
-    if (team) options.team = team;
-    if (type) options.type = type;
+    const statistics = await fixtureStatisticsService.getBothTeamsStatistics(
+      parseInt(fixtureId),
+      parseInt(homeTeamId),
+      parseInt(awayTeamId)
+    );
 
-    // Buscar estatísticas com refresh forçado
-    const result = await fixtureStatisticsService.getFixtureStats(parseInt(fixtureId), options);
-
-    if (!result.success) {
-      return res.status(404).json({
-        success: false,
-        error: result.error,
-        fixtureId: parseInt(fixtureId)
-      });
-    }
+    // Processar estatísticas para formato mais amigável
+    const processedStats = {
+      fixtureId: parseInt(fixtureId),
+      home: statistics.home ? {
+        team: statistics.home.team,
+        raw: fixtureStatisticsService.extractTeamStatistics(statistics.home),
+        attack: fixtureStatisticsService.calculateAttackMetrics(
+          fixtureStatisticsService.extractTeamStatistics(statistics.home)
+        ),
+        defense: fixtureStatisticsService.calculateDefenseMetrics(
+          fixtureStatisticsService.extractTeamStatistics(statistics.home)
+        ),
+        possession: fixtureStatisticsService.calculatePossessionMetrics(
+          fixtureStatisticsService.extractTeamStatistics(statistics.home)
+        )
+      } : null,
+      away: statistics.away ? {
+        team: statistics.away.team,
+        raw: fixtureStatisticsService.extractTeamStatistics(statistics.away),
+        attack: fixtureStatisticsService.calculateAttackMetrics(
+          fixtureStatisticsService.extractTeamStatistics(statistics.away)
+        ),
+        defense: fixtureStatisticsService.calculateDefenseMetrics(
+          fixtureStatisticsService.extractTeamStatistics(statistics.away)
+        ),
+        possession: fixtureStatisticsService.calculatePossessionMetrics(
+          fixtureStatisticsService.extractTeamStatistics(statistics.away)
+        )
+      } : null,
+      timestamp: new Date().toISOString()
+    };
 
     res.json({
       success: true,
-      data: result.data,
-      source: result.source,
-      fixtureId: parseInt(fixtureId),
-      refreshed: true,
-      timestamp: new Date().toISOString()
+      data: processedStats
     });
 
   } catch (error) {
-    console.error('❌ Erro ao fazer refresh das estatísticas completas:', error.message);
+    console.error('❌ Erro na rota de estatísticas de ambos os times:', error.message);
     res.status(500).json({
       success: false,
       error: 'Erro interno do servidor',
@@ -118,16 +128,70 @@ router.post('/refresh/:fixtureId', async (req, res) => {
 });
 
 /**
- * @route   GET /api/fixture-statistics/health
- * @desc    Verifica a saúde do serviço de estatísticas completas
- * @access  Public
+ * GET /api/fixtures/statistics/:fixtureId/team/:teamId
+ * Busca estatísticas de um time específico em uma fixture
  */
-router.get('/health', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Serviço de Estatísticas Completas da Fixture funcionando',
-    timestamp: new Date().toISOString()
-  });
+router.get('/:fixtureId/team/:teamId', async (req, res) => {
+  try {
+    const { fixtureId, teamId } = req.params;
+    const { half } = req.query;
+
+    console.log(`📊 Rota: Buscando estatísticas do time ${teamId} na fixture ${fixtureId}`);
+
+    if (!fixtureId || !teamId) {
+      return res.status(400).json({
+        success: false,
+        error: 'ID da fixture e ID do time são obrigatórios'
+      });
+    }
+
+    const includeHalf = half === 'true';
+    const statistics = await fixtureStatisticsService.getFixtureStatistics(
+      parseInt(fixtureId),
+      parseInt(teamId),
+      includeHalf
+    );
+
+    if (statistics.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Estatísticas não encontradas para este time nesta fixture',
+        fixtureId: parseInt(fixtureId),
+        teamId: parseInt(teamId)
+      });
+    }
+
+    const teamStats = statistics[0];
+    const processedStats = {
+      fixtureId: parseInt(fixtureId),
+      teamId: parseInt(teamId),
+      team: teamStats.team,
+      raw: fixtureStatisticsService.extractTeamStatistics(teamStats),
+      attack: fixtureStatisticsService.calculateAttackMetrics(
+        fixtureStatisticsService.extractTeamStatistics(teamStats)
+      ),
+      defense: fixtureStatisticsService.calculateDefenseMetrics(
+        fixtureStatisticsService.extractTeamStatistics(teamStats)
+      ),
+      possession: fixtureStatisticsService.calculatePossessionMetrics(
+        fixtureStatisticsService.extractTeamStatistics(teamStats)
+      ),
+      timestamp: new Date().toISOString()
+    };
+
+    res.json({
+      success: true,
+      data: processedStats
+    });
+
+  } catch (error) {
+    console.error('❌ Erro na rota de estatísticas de time específico:', error.message);
+    res.status(500).json({
+      success: false,
+      error: 'Erro interno do servidor',
+      details: error.message
+    });
+  }
 });
 
 module.exports = router;

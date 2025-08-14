@@ -1,5 +1,6 @@
 const axios = require('axios');
 const cacheService = require('./cacheService');
+const fixtureStatisticsService = require('./fixtureStatisticsService');
 
 class AdvancedAnalysisService {
   constructor() {
@@ -112,17 +113,32 @@ class AdvancedAnalysisService {
     if (homeStats && homeStats.shots) {
       const totalShots = homeStats.shots.total || 0;
       const shotsOnTarget = homeStats.shots.on || 0;
-      const goals = homeStats.goals.total || 0;
+      const shotsInsideBox = homeStats.shotsInsideBox || 0;
+      const shotsOutsideBox = homeStats.shotsOutsideBox || 0;
       
       analysis.home.shotsPerGame = totalShots;
       analysis.home.shotsOnTarget = shotsOnTarget;
-      analysis.home.conversionRate = totalShots > 0 ? (goals / totalShots) * 100 : 0;
-      analysis.home.efficiency = shotsOnTarget > 0 ? (goals / shotsOnTarget) * 100 : 0;
       
-      // Classificar força do ataque
-      if (analysis.home.conversionRate >= 15) analysis.home.strength = 'Excelente';
-      else if (analysis.home.conversionRate >= 10) analysis.home.strength = 'Boa';
-      else if (analysis.home.conversionRate >= 5) analysis.home.strength = 'Média';
+      // Taxa de conversão baseada em finalizações no alvo
+      analysis.home.conversionRate = totalShots > 0 ? ((shotsOnTarget / totalShots) * 100).toFixed(1) : 0;
+      analysis.home.efficiency = totalShots > 0 ? ((shotsOnTarget / totalShots) * 100).toFixed(1) : 0;
+      
+      // Classificar força do ataque baseado em múltiplos fatores
+      let attackScore = 0;
+      if (totalShots >= 15) attackScore += 3;
+      else if (totalShots >= 10) attackScore += 2;
+      else if (totalShots >= 5) attackScore += 1;
+      
+      if (shotsOnTarget >= 8) attackScore += 3;
+      else if (shotsOnTarget >= 5) attackScore += 2;
+      else if (shotsOnTarget >= 3) attackScore += 1;
+      
+      if (shotsInsideBox >= 8) attackScore += 2;
+      else if (shotsInsideBox >= 5) attackScore += 1;
+      
+      if (attackScore >= 7) analysis.home.strength = 'Excelente';
+      else if (attackScore >= 4) analysis.home.strength = 'Boa';
+      else if (attackScore >= 2) analysis.home.strength = 'Média';
       else analysis.home.strength = 'Fraca';
     }
 
@@ -130,25 +146,41 @@ class AdvancedAnalysisService {
     if (awayStats && awayStats.shots) {
       const totalShots = awayStats.shots.total || 0;
       const shotsOnTarget = awayStats.shots.on || 0;
-      const goals = awayStats.goals.total || 0;
+      const shotsInsideBox = awayStats.shotsInsideBox || 0;
+      const shotsOutsideBox = awayStats.shotsOutsideBox || 0;
       
       analysis.away.shotsPerGame = totalShots;
       analysis.away.shotsOnTarget = shotsOnTarget;
-      analysis.away.conversionRate = totalShots > 0 ? (goals / totalShots) * 100 : 0;
-      analysis.away.efficiency = shotsOnTarget > 0 ? (goals / shotsOnTarget) * 100 : 0;
       
-      if (analysis.away.conversionRate >= 15) analysis.away.strength = 'Excelente';
-      else if (analysis.away.conversionRate >= 10) analysis.away.strength = 'Boa';
-      else if (analysis.away.conversionRate >= 5) analysis.away.strength = 'Média';
+      // Taxa de conversão baseada em finalizações no alvo
+      analysis.away.conversionRate = totalShots > 0 ? ((shotsOnTarget / totalShots) * 100).toFixed(1) : 0;
+      analysis.away.efficiency = totalShots > 0 ? ((shotsOnTarget / totalShots) * 100).toFixed(1) : 0;
+      
+      // Classificar força do ataque baseado em múltiplos fatores
+      let attackScore = 0;
+      if (totalShots >= 15) attackScore += 3;
+      else if (totalShots >= 10) attackScore += 2;
+      else if (totalShots >= 5) attackScore += 1;
+      
+      if (shotsOnTarget >= 8) attackScore += 3;
+      else if (shotsOnTarget >= 5) attackScore += 2;
+      else if (shotsOnTarget >= 3) attackScore += 1;
+      
+      if (shotsInsideBox >= 8) attackScore += 2;
+      else if (shotsInsideBox >= 5) attackScore += 1;
+      
+      if (attackScore >= 7) analysis.away.strength = 'Excelente';
+      else if (attackScore >= 4) analysis.away.strength = 'Boa';
+      else if (attackScore >= 2) analysis.away.strength = 'Média';
       else analysis.away.strength = 'Fraca';
     }
 
     // Comparação
-    analysis.comparison.homeAdvantage = analysis.home.conversionRate - analysis.away.conversionRate;
+    analysis.comparison.homeAdvantage = analysis.home.shotsOnTarget - analysis.away.shotsOnTarget;
     
-    if (analysis.home.conversionRate > analysis.away.conversionRate * 1.5) {
+    if (analysis.home.shotsOnTarget > analysis.away.shotsOnTarget * 1.5) {
       analysis.comparison.keyInsights.push('Time da casa tem ataque significativamente superior');
-    } else if (analysis.away.conversionRate > analysis.home.conversionRate * 1.5) {
+    } else if (analysis.away.shotsOnTarget > analysis.home.shotsOnTarget * 1.5) {
       analysis.comparison.keyInsights.push('Time visitante tem ataque significativamente superior');
     }
 
@@ -186,13 +218,38 @@ class AdvancedAnalysisService {
 
     // Análise da defesa do time da casa
     if (homeStats) {
-      analysis.home.goalsConceded = homeStats.goals?.conceded || 0;
-      analysis.home.cornersConceded = homeStats.corners?.conceded || 0;
       analysis.home.foulsCommitted = homeStats.fouls?.committed || 0;
+      analysis.home.cornersConceded = homeStats.corners?.won || 0; // Escanteios ganhos pelo oponente
+      analysis.home.goalsConceded = homeStats.goalsConceded || 0; // Gols sofridos calculados
+      analysis.home.goalkeeperSaves = homeStats.goalkeeperSaves || 0;
+      analysis.home.yellowCards = homeStats.yellowCards || 0;
+      analysis.home.redCards = homeStats.redCards || 0;
       
-      // Eficiência defensiva (menos gols = melhor)
-      analysis.home.defensiveEfficiency = 100 - (analysis.home.goalsConceded * 10);
-      if (analysis.home.defensiveEfficiency < 0) analysis.home.defensiveEfficiency = 0;
+      // Eficiência defensiva baseada em múltiplos fatores
+      let defenseScore = 0;
+      
+      // Menos gols sofridos = melhor defesa (mais importante)
+      if (analysis.home.goalsConceded === 0) defenseScore += 5;
+      else if (analysis.home.goalsConceded <= 1) defenseScore += 3;
+      else if (analysis.home.goalsConceded <= 2) defenseScore += 1;
+      
+      // Menos faltas = melhor defesa
+      if (analysis.home.foulsCommitted <= 10) defenseScore += 3;
+      else if (analysis.home.foulsCommitted <= 15) defenseScore += 2;
+      else if (analysis.home.foulsCommitted <= 20) defenseScore += 1;
+      
+      // Mais defesas = melhor defesa
+      if (analysis.home.goalkeeperSaves >= 5) defenseScore += 3;
+      else if (analysis.home.goalkeeperSaves >= 3) defenseScore += 2;
+      else if (analysis.home.goalkeeperSaves >= 1) defenseScore += 1;
+      
+      // Menos cartões = melhor disciplina
+      if (analysis.home.yellowCards <= 1) defenseScore += 2;
+      else if (analysis.home.yellowCards <= 3) defenseScore += 1;
+      
+      if (analysis.home.redCards === 0) defenseScore += 1;
+      
+      analysis.home.defensiveEfficiency = Math.min(100, defenseScore * 7); // Ajustado para dar mais peso aos gols
       
       if (analysis.home.defensiveEfficiency >= 80) analysis.home.strength = 'Excelente';
       else if (analysis.home.defensiveEfficiency >= 60) analysis.home.strength = 'Boa';
@@ -202,12 +259,38 @@ class AdvancedAnalysisService {
 
     // Análise da defesa do time visitante
     if (awayStats) {
-      analysis.away.goalsConceded = awayStats.goals?.conceded || 0;
-      analysis.away.cornersConceded = awayStats.corners?.conceded || 0;
       analysis.away.foulsCommitted = awayStats.fouls?.committed || 0;
+      analysis.away.cornersConceded = awayStats.corners?.won || 0; // Escanteios ganhos pelo oponente
+      analysis.away.goalsConceded = awayStats.goalsConceded || 0; // Gols sofridos calculados
+      analysis.away.goalkeeperSaves = awayStats.goalkeeperSaves || 0;
+      analysis.away.yellowCards = awayStats.yellowCards || 0;
+      analysis.away.redCards = awayStats.redCards || 0;
       
-      analysis.away.defensiveEfficiency = 100 - (analysis.away.goalsConceded * 10);
-      if (analysis.away.defensiveEfficiency < 0) analysis.away.defensiveEfficiency = 0;
+      // Eficiência defensiva baseada em múltiplos fatores
+      let defenseScore = 0;
+      
+      // Menos gols sofridos = melhor defesa (mais importante)
+      if (analysis.away.goalsConceded === 0) defenseScore += 5;
+      else if (analysis.away.goalsConceded <= 1) defenseScore += 3;
+      else if (analysis.away.goalsConceded <= 2) defenseScore += 1;
+      
+      // Menos faltas = melhor defesa
+      if (analysis.away.foulsCommitted <= 10) defenseScore += 3;
+      else if (analysis.away.foulsCommitted <= 15) defenseScore += 2;
+      else if (analysis.away.foulsCommitted <= 20) defenseScore += 1;
+      
+      // Mais defesas = melhor defesa
+      if (analysis.away.goalkeeperSaves >= 5) defenseScore += 3;
+      else if (analysis.away.goalkeeperSaves >= 3) defenseScore += 2;
+      else if (analysis.away.goalkeeperSaves >= 1) defenseScore += 1;
+      
+      // Menos cartões = melhor disciplina
+      if (analysis.away.yellowCards <= 1) defenseScore += 2;
+      else if (analysis.away.yellowCards <= 3) defenseScore += 1;
+      
+      if (analysis.away.redCards === 0) defenseScore += 1;
+      
+      analysis.away.defensiveEfficiency = Math.min(100, defenseScore * 7); // Ajustado para dar mais peso aos gols
       
       if (analysis.away.defensiveEfficiency >= 80) analysis.away.strength = 'Excelente';
       else if (analysis.away.defensiveEfficiency >= 60) analysis.away.strength = 'Boa';
@@ -665,16 +748,89 @@ class AdvancedAnalysisService {
 
   async getTeamStatistics(fixtureId, teamType) {
     try {
-      const response = await axios.get(`${this.baseURL}/fixtures/statistics`, {
-        params: { fixture: fixtureId },
-        headers: {
-          'x-rapidapi-host': 'v3.football.api-sports.io',
-          'x-rapidapi-key': this.apiKey
-        }
-      });
+      console.log(`📊 Buscando estatísticas ${teamType} para fixture ${fixtureId}`);
+      
+      // Primeiro, buscar detalhes da fixture para obter os IDs dos times
+      const fixtureDetails = await this.getFixtureDetails(fixtureId);
+      if (!fixtureDetails) {
+        console.log(`⚠️ Detalhes da fixture ${fixtureId} não encontrados`);
+        return null;
+      }
 
-      const stats = response.data.response?.[0]?.statistics;
-      return teamType === 'home' ? stats?.home : stats?.away;
+      const homeTeamId = fixtureDetails.teams?.home?.id;
+      const awayTeamId = fixtureDetails.teams?.away?.id;
+      
+      if (!homeTeamId || !awayTeamId) {
+        console.log(`⚠️ IDs dos times não encontrados para fixture ${fixtureId}`);
+        return null;
+      }
+
+      // Buscar estatísticas do time específico
+      const targetTeamId = teamType === 'home' ? homeTeamId : awayTeamId;
+      const statistics = await fixtureStatisticsService.getFixtureStatistics(fixtureId, targetTeamId);
+      
+      if (!statistics || statistics.length === 0) {
+        console.log(`⚠️ Estatísticas do time ${teamType} (ID: ${targetTeamId}) não encontradas para fixture ${fixtureId}`);
+        return null;
+      }
+
+      // Pegar os dados do time específico
+      const teamData = statistics[0]; // Deve ser o único time retornado quando especificamos teamId
+      
+      if (!teamData) {
+        console.log(`⚠️ Dados do time ${teamType} não encontrados para fixture ${fixtureId}`);
+        return null;
+      }
+
+      // Usar o método de extração do serviço de estatísticas
+      const rawStats = fixtureStatisticsService.extractTeamStatistics(teamData);
+      
+      // Buscar estatísticas do time oponente para calcular gols sofridos
+      const opponentTeamId = teamType === 'home' ? awayTeamId : homeTeamId;
+      const opponentStats = await fixtureStatisticsService.getFixtureStatistics(fixtureId, opponentTeamId);
+      
+      let goalsConceded = 0;
+      if (opponentStats && opponentStats.length > 0) {
+        const opponentRawStats = fixtureStatisticsService.extractTeamStatistics(opponentStats[0]);
+        // Assumir que os gols do oponente são os gols sofridos por este time
+        // Como a API não retorna gols diretamente, vamos usar uma estimativa baseada em finalizações
+        goalsConceded = Math.floor(opponentRawStats.shotsOnGoal * 0.3); // Estimativa: 30% das finalizações viram gols
+      }
+      
+      // Converter para o formato esperado pela análise avançada
+      const processedStats = {
+        shots: { 
+          total: rawStats.totalShots || 0, 
+          on: rawStats.shotsOnGoal || 0, 
+          off: rawStats.shotsOffGoal || 0 
+        },
+        fouls: { committed: rawStats.fouls || 0 },
+        corners: { won: rawStats.cornerKicks || 0 },
+        passes: { 
+          total: rawStats.totalPasses || 0, 
+          accurate: rawStats.passesAccurate || 0 
+        },
+        possession: rawStats.ballPossession || '0%',
+        yellowCards: rawStats.yellowCards || 0,
+        redCards: rawStats.redCards || 0,
+        goalkeeperSaves: rawStats.goalkeeperSaves || 0,
+        shotsInsideBox: rawStats.shotsInsideBox || 0,
+        shotsOutsideBox: rawStats.shotsOutsideBox || 0,
+        blockedShots: rawStats.blockedShots || 0,
+        offsides: rawStats.offsides || 0,
+        goalsConceded: goalsConceded
+      };
+
+      console.log(`✅ Estatísticas ${teamType} processadas:`, {
+        shotsTotal: processedStats.shots.total,
+        shotsOn: processedStats.shots.on,
+        fouls: processedStats.fouls.committed,
+        corners: processedStats.corners.won,
+        goalsConceded: processedStats.goalsConceded
+      });
+      
+      return processedStats;
+
     } catch (error) {
       console.error(`❌ Erro ao buscar estatísticas ${teamType} para fixture ${fixtureId}:`, error.message);
       return null;
