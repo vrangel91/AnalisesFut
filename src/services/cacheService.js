@@ -245,6 +245,25 @@ class CacheService {
     });
   }
 
+  // Deletar cache específico
+  async deleteCache(endpoint, params = {}) {
+    return new Promise((resolve, reject) => {
+      const cacheKey = this.generateCacheKey(endpoint, params);
+      
+      const stmt = this.db.prepare('DELETE FROM cache WHERE id = ?');
+      stmt.run(cacheKey, (err) => {
+        if (err) {
+          console.error(`❌ Erro ao deletar cache para ${endpoint}:`, err);
+          reject(err);
+        } else {
+          console.log(`🗑️ Cache deletado: ${endpoint}`);
+          resolve(true);
+        }
+      });
+      stmt.finalize();
+    });
+  }
+
   // Limpar todo o cache
   async clearAllCache() {
     return new Promise((resolve, reject) => {

@@ -6,42 +6,70 @@ const cacheService = require('../services/cacheService');
 
 // Função auxiliar para formatar predições no formato esperado pelo frontend
 const formatPredictionsForFrontend = (predictions) => {
-  return Object.values(predictions)
-    .filter(p => p.success && p.data)
-    .map(prediction => {
+  console.log('🔍 Debug formatPredictionsForFrontend:');
+  console.log('   Tipo de predictions:', typeof predictions);
+  console.log('   É array:', Array.isArray(predictions));
+  console.log('   É objeto:', typeof predictions === 'object' && predictions !== null);
+  console.log('   Keys:', Object.keys(predictions));
+  
+  if (Object.keys(predictions).length > 0) {
+    const firstKey = Object.keys(predictions)[0];
+    const firstPrediction = predictions[firstKey];
+    console.log('   Primeira chave:', firstKey);
+    console.log('   Tipo da primeira chave:', typeof firstKey);
+    console.log('   Primeira predição success:', firstPrediction?.success);
+    console.log('   Primeira predição data keys:', Object.keys(firstPrediction?.data || {}));
+    console.log('   Fixture ID no data:', firstPrediction?.data?.fixture?.fixture?.id);
+    console.log('   Tipo do Fixture ID no data:', typeof firstPrediction?.data?.fixture?.fixture?.id);
+  }
+  
+  return Object.entries(predictions)
+    .filter(([fixtureId, prediction]) => prediction.success && prediction.data)
+    .map(([fixtureId, prediction]) => {
       const { data } = prediction;
       
-      // Gerar um ID único para a fixture
-      const fixtureId = Math.random().toString(36).substr(2, 9);
+      console.log(`🔍 Processando fixture ${fixtureId}:`);
+      console.log('   Data keys:', Object.keys(data));
+      console.log('   Data fixture:', data.fixture);
+      
+      // O fixtureId já é um número (vem do getMultipleFixturePredictions)
+      const numericFixtureId = Number(fixtureId);
+      
+      // Se não há fixture ID válido, pular esta predição
+      if (!numericFixtureId || isNaN(numericFixtureId)) {
+        console.warn('⚠️ Predição sem fixture ID válido:', fixtureId, data);
+        return null;
+      }
       
       return {
         fixture: {
           fixture: {
-            id: fixtureId,
-            date: new Date().toISOString(),
-            status: 'NS'
+            id: numericFixtureId, // Usar o ID numérico real da API
+            date: data.fixture?.fixture?.date || new Date().toISOString(),
+            status: data.fixture?.fixture?.status || 'NS'
           },
-          teams: data.data?.teams || {
+          teams: data.teams || {
             home: { name: 'Time Casa', id: 1 },
             away: { name: 'Time Visitante', id: 2 }
           },
-          league: data.data?.league || {
+          league: data.league || {
             name: 'Liga',
             id: 1,
             country: 'País'
           }
         },
-        prediction: data.data?.predictions || {},
-        confidence: data.data?.analysis?.confidence || 'Média',
-        riskLevel: data.data?.analysis?.riskLevel || 'Médio',
-        recommendation: data.data?.analysis?.recommendedBets?.[0] || null,
-        analysis: data.data?.analysis || {}, // 🚀 ADICIONADO: Incluir análise completa
+        prediction: data.predictions || {},
+        confidence: data.analysis?.confidence || 'Média',
+        riskLevel: data.analysis?.riskLevel || 'Médio',
+        recommendation: data.analysis?.recommendedBets?.[0] || null,
+        analysis: data.analysis || {}, // 🚀 ADICIONADO: Incluir análise completa
         // 🚀 ADICIONADO: Incluir dados necessários para análise avançada
-        comparison: data.data?.comparison || {},
-        teams: data.data?.teams || {},
-        predictions: data.data?.predictions || {}
+        comparison: data.comparison || {},
+        teams: data.teams || {},
+        predictions: data.predictions || {}
       };
-    });
+    })
+    .filter(prediction => prediction !== null); // Remover predições inválidas
 };
 
 // ===== ROTAS ESPECÍFICAS (DEVEM VIR ANTES DAS ROTAS GENÉRICAS) =====
@@ -118,10 +146,31 @@ router.get('/today', async (req, res) => {
 
     // Buscar predições para as primeiras 5 fixtures
     const fixtureIds = fixturesResponse.data.response.slice(0, 5).map(f => f.fixture.id);
+    console.log('🔍 Fixture IDs obtidos:', fixtureIds);
+    
+    // Se for force refresh, limpar cache de cada fixture individualmente
+    if (forceRefresh) {
+      console.log('🔄 Force refresh: limpando cache de cada fixture...');
+      for (const fixtureId of fixtureIds) {
+        await cacheService.deleteCache('predictions', { fixtureId });
+      }
+    }
+    
     const predictions = await predictionsService.getMultipleFixturePredictions(fixtureIds);
 
     // Formatar dados no formato esperado pelo frontend
+    console.log('🔍 Antes de formatPredictionsForFrontend:');
+    console.log('   Tipo de predictions:', typeof predictions);
+    console.log('   Keys:', Object.keys(predictions));
+    
     const formattedPredictions = formatPredictionsForFrontend(predictions);
+    
+    console.log('🔍 Após formatPredictionsForFrontend:');
+    console.log('   Número de predições formatadas:', formattedPredictions.length);
+    if (formattedPredictions.length > 0) {
+      console.log('   Primeira predição ID:', formattedPredictions[0].fixture?.fixture?.id);
+      console.log('   Tipo do ID:', typeof formattedPredictions[0].fixture?.fixture?.id);
+    }
 
     // Salvar no cache por 1 hora
     await cacheService.setCache('predictions', { type: 'today' }, formattedPredictions);
@@ -305,6 +354,44 @@ router.get('/finished', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Erro ao buscar predições finalizadas',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * 🚀 NOVA: @route   GET /api/predictions/advanced/:fixtureId
+ * @desc    Obtém análise avançada completa de uma fixture
+ * @access  Public
+ */
+router.get('/advanced/:fixtureId', async (req, res) => {
+  try {
+    const { fixtureId } = req.params;
+    const { refresh } = req.query;
+    
+    if (!fixtureId) {
+      return res.status(400).json({
+        success: false,
+        error: 'ID da fixture é obrigatório'
+      });
+    }
+
+    console.log(`🔍 Iniciando análise avançada para fixture ${fixtureId}`);
+
+    const forceRefresh = refresh === 'true';
+    const result = await predictionsService.getAdvancedFixtureAnalysis(parseInt(fixtureId), forceRefresh);
+
+    if (!result.success) {
+      return res.status(404).json(result);
+    }
+
+    res.json(result);
+
+  } catch (error) {
+    console.error('❌ Erro ao buscar análise avançada:', error.message);
+    res.status(500).json({
+      success: false,
+      error: 'Erro interno do servidor',
       details: error.message
     });
   }

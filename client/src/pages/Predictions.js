@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaSearch, FaFilter, FaChartLine, FaDice, FaEye, FaInfoCircle, FaTrophy, FaBars, FaCoins } from 'react-icons/fa';
+import { FaSearch, FaFilter, FaChartLine, FaDice, FaEye, FaInfoCircle, FaTrophy, FaBars, FaCoins, FaBrain } from 'react-icons/fa';
 import axios from 'axios';
 import AddBetButton from '../components/AddBetButton';
 import H2hCornerAnalysisSection from '../components/H2hCornerAnalysisSection';
@@ -24,7 +24,11 @@ const Predictions = () => {
   const [autoLoadOdds, setAutoLoadOdds] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all'); // Novo filtro de status
   
-
+  // Estados para análise avançada
+  const [showAdvancedAnalysisModal, setShowAdvancedAnalysisModal] = useState(false);
+  const [selectedFixtureForAdvancedAnalysis, setSelectedFixtureForAdvancedAnalysis] = useState(null);
+  const [advancedAnalysisData, setAdvancedAnalysisData] = useState(null);
+  const [loadingAdvancedAnalysis, setLoadingAdvancedAnalysis] = useState(false);
   
   // Estados para análise H2H de corner kicks
   const [h2hCornerAnalysis, setH2hCornerAnalysis] = useState({});
@@ -446,6 +450,49 @@ const Predictions = () => {
   const closeApiPredictionsModal = () => {
     setShowApiPredictionsModal(false);
     setSelectedFixtureForPredictions(null);
+  };
+
+  // Função para abrir modal de análise avançada
+  const openAdvancedAnalysisModal = async (fixture) => {
+    console.log('🔍 Fixture para análise avançada:', fixture);
+    console.log('🔍 Estrutura da fixture:', {
+      hasFixture: !!fixture?.fixture,
+      hasId: !!fixture?.id,
+      fixtureId: fixture?.fixture?.id || fixture?.id
+    });
+    
+    setSelectedFixtureForAdvancedAnalysis(fixture);
+    setShowAdvancedAnalysisModal(true);
+    setLoadingAdvancedAnalysis(true);
+    setAdvancedAnalysisData(null);
+    
+    try {
+      const fixtureId = fixture?.fixture?.id || fixture?.id;
+      console.log(`🔍 Carregando análise avançada para fixture ${fixtureId}`);
+      
+      const response = await axios.get(`/api/predictions/advanced/${fixtureId}?refresh=true`);
+      
+      if (response.data.success) {
+        console.log('✅ Análise avançada carregada com sucesso:', response.data.data);
+        setAdvancedAnalysisData(response.data.data);
+      } else {
+        console.error('❌ Erro ao carregar análise avançada:', response.data.error);
+        alert('Erro ao carregar análise avançada: ' + response.data.error);
+      }
+    } catch (error) {
+      console.error('❌ Erro ao carregar análise avançada:', error);
+      alert('Erro ao carregar análise avançada. Verifique o console para mais detalhes.');
+    } finally {
+      setLoadingAdvancedAnalysis(false);
+    }
+  };
+
+  // Função para fechar modal de análise avançada
+  const closeAdvancedAnalysisModal = () => {
+    setShowAdvancedAnalysisModal(false);
+    setSelectedFixtureForAdvancedAnalysis(null);
+    setAdvancedAnalysisData(null);
+    setLoadingAdvancedAnalysis(false);
   };
 
   // Função para carregar análise IA de gols para fixtures da aba Próximos Jogos
@@ -1574,6 +1621,16 @@ const Predictions = () => {
                 Predições API
               </button>
               
+              {/* Botão Análise Avançada */}
+              <button
+                onClick={() => openAdvancedAnalysisModal(fixture)}
+                className="px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-600 text-white shadow-sm hover:shadow-md transform hover:scale-105"
+                title="Ver análise avançada completa"
+              >
+                <FaBrain className="text-xs" />
+                Análise Avançada
+              </button>
+              
               {/* Botão Adicionar - só mostrar se tiver análise IA */}
               {aiAnalysisToday[fixture.id] && (
                 <AddBetButton 
@@ -1735,6 +1792,18 @@ const Predictions = () => {
           loadingH2hCorners={loadingH2hCorners}
           loadH2hCornerAnalysis={loadH2hCornerAnalysis}
         />
+        
+        {/* Botão Análise Avançada */}
+        <div className="mt-3 pt-3 border-t border-gray-200">
+          <button
+            onClick={() => openAdvancedAnalysisModal(fixture)}
+            className="w-full px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg transition-colors text-sm flex items-center justify-center gap-2"
+            title="Ver análise avançada completa"
+          >
+            <FaBrain className="text-sm" />
+            Análise Avançada Completa
+          </button>
+        </div>
           </div>
         )}
 
@@ -2253,6 +2322,386 @@ const Predictions = () => {
           isOpen={showApiPredictionsModal}
           onClose={closeApiPredictionsModal}
         />
+
+        {/* Modal de Análise Avançada */}
+        {showAdvancedAnalysisModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
+              {/* Header */}
+              <div className="flex justify-between items-center p-6 border-b border-gray-200">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                    <FaBrain className="text-indigo-600" />
+                    Análise Avançada Completa
+                  </h2>
+                  {selectedFixtureForAdvancedAnalysis && (
+                    <p className="text-gray-600 mt-1">
+                      {selectedFixtureForAdvancedAnalysis.teams?.home?.name || selectedFixtureForAdvancedAnalysis.fixture?.teams?.home?.name} vs {selectedFixtureForAdvancedAnalysis.teams?.away?.name || selectedFixtureForAdvancedAnalysis.fixture?.teams?.away?.name}
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={closeAdvancedAnalysisModal}
+                  className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+                {loadingAdvancedAnalysis ? (
+                  <div className="text-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto"></div>
+                    <p className="mt-4 text-gray-600">Carregando análise avançada...</p>
+                  </div>
+                ) : advancedAnalysisData ? (
+                  <div className="space-y-6">
+                    {/* Resumo Executivo */}
+                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-lg border border-indigo-200">
+                      <h3 className="text-lg font-semibold text-indigo-900 mb-4 flex items-center gap-2">
+                        📊 Resumo Executivo
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {advancedAnalysisData.riskAssessment && (
+                          <div className="bg-white p-4 rounded-lg border border-indigo-200">
+                            <div className="text-sm text-gray-600 mb-1">Nível de Risco</div>
+                            <div className="text-2xl font-bold text-indigo-600">
+                              {advancedAnalysisData.riskAssessment.level}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              Score: {advancedAnalysisData.riskAssessment.score}/100
+                            </div>
+                          </div>
+                        )}
+                        {advancedAnalysisData.bettingInsights && (
+                          <div className="bg-white p-4 rounded-lg border border-indigo-200">
+                            <div className="text-sm text-gray-600 mb-1">Confiança</div>
+                            <div className="text-2xl font-bold text-green-600">
+                              {advancedAnalysisData.bettingInsights.confidence}
+                            </div>
+                          </div>
+                        )}
+                        {advancedAnalysisData.overUnderAnalysis && (
+                          <div className="bg-white p-4 rounded-lg border border-indigo-200">
+                            <div className="text-sm text-gray-600 mb-1">Média de Gols</div>
+                            <div className="text-2xl font-bold text-blue-600">
+                              {advancedAnalysisData.overUnderAnalysis.averageGoals?.toFixed(1) || 'N/A'}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Análise de Ataque */}
+                    {advancedAnalysisData.attackAnalysis && (
+                      <div className="bg-white p-6 rounded-lg border border-gray-200">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                          ⚽ Análise de Ataque
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div>
+                            <h4 className="font-medium text-gray-800 mb-3">Time da Casa</h4>
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Taxa de Conversão:</span>
+                                <span className="font-medium">{advancedAnalysisData.attackAnalysis.home?.conversionRate?.toFixed(1) || 'N/A'}%</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Chutes por Jogo:</span>
+                                <span className="font-medium">{advancedAnalysisData.attackAnalysis.home?.shotsPerGame?.toFixed(1) || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Finalizações no Alvo:</span>
+                                <span className="font-medium">{advancedAnalysisData.attackAnalysis.home?.shotsOnTarget?.toFixed(1) || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Classificação:</span>
+                                <span className="font-medium text-blue-600">{advancedAnalysisData.attackAnalysis.home?.strength || 'N/A'}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-gray-800 mb-3">Time Visitante</h4>
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Taxa de Conversão:</span>
+                                <span className="font-medium">{advancedAnalysisData.attackAnalysis.away?.conversionRate?.toFixed(1) || 'N/A'}%</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Chutes por Jogo:</span>
+                                <span className="font-medium">{advancedAnalysisData.attackAnalysis.away?.shotsPerGame?.toFixed(1) || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Finalizações no Alvo:</span>
+                                <span className="font-medium">{advancedAnalysisData.attackAnalysis.away?.shotsOnTarget?.toFixed(1) || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Classificação:</span>
+                                <span className="font-medium text-blue-600">{advancedAnalysisData.attackAnalysis.away?.strength || 'N/A'}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        {advancedAnalysisData.attackAnalysis.insights && (
+                          <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                            <div className="text-sm font-medium text-blue-800 mb-1">💡 Insights:</div>
+                            <p className="text-sm text-blue-700">{advancedAnalysisData.attackAnalysis.insights}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Análise de Defesa */}
+                    {advancedAnalysisData.defenseAnalysis && (
+                      <div className="bg-white p-6 rounded-lg border border-gray-200">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                          🛡️ Análise de Defesa
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div>
+                            <h4 className="font-medium text-gray-800 mb-3">Time da Casa</h4>
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Gols Sofridos:</span>
+                                <span className="font-medium">{advancedAnalysisData.defenseAnalysis.home?.goalsConceded?.toFixed(1) || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Escanteios Cedidos:</span>
+                                <span className="font-medium">{advancedAnalysisData.defenseAnalysis.home?.cornersConceded?.toFixed(1) || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Faltas Cometidas:</span>
+                                <span className="font-medium">{advancedAnalysisData.defenseAnalysis.home?.foulsCommitted?.toFixed(1) || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Eficiência:</span>
+                                <span className="font-medium text-green-600">{advancedAnalysisData.defenseAnalysis.home?.efficiency?.toFixed(1) || 'N/A'}%</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-gray-800 mb-3">Time Visitante</h4>
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Gols Sofridos:</span>
+                                <span className="font-medium">{advancedAnalysisData.defenseAnalysis.away?.goalsConceded?.toFixed(1) || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Escanteios Cedidos:</span>
+                                <span className="font-medium">{advancedAnalysisData.defenseAnalysis.away?.cornersConceded?.toFixed(1) || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Faltas Cometidas:</span>
+                                <span className="font-medium">{advancedAnalysisData.defenseAnalysis.away?.foulsCommitted?.toFixed(1) || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Eficiência:</span>
+                                <span className="font-medium text-green-600">{advancedAnalysisData.defenseAnalysis.away?.efficiency?.toFixed(1) || 'N/A'}%</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        {advancedAnalysisData.defenseAnalysis.insights && (
+                          <div className="mt-4 p-3 bg-green-50 rounded-lg border border-green-200">
+                            <div className="text-sm font-medium text-green-800 mb-1">💡 Insights:</div>
+                            <p className="text-sm text-green-700">{advancedAnalysisData.defenseAnalysis.insights}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Análise de Forma Recente */}
+                    {advancedAnalysisData.formAnalysis && (
+                      <div className="bg-white p-6 rounded-lg border border-gray-200">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                          📈 Análise de Forma Recente
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div>
+                            <h4 className="font-medium text-gray-800 mb-3">Time da Casa</h4>
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Últimos 10 jogos:</span>
+                                <span className="font-medium">{advancedAnalysisData.formAnalysis.home?.wins || 0}V {advancedAnalysisData.formAnalysis.home?.draws || 0}E {advancedAnalysisData.formAnalysis.home?.losses || 0}D</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Gols Marcados:</span>
+                                <span className="font-medium">{advancedAnalysisData.formAnalysis.home?.goalsFor || 0}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Gols Sofridos:</span>
+                                <span className="font-medium">{advancedAnalysisData.formAnalysis.home?.goalsAgainst || 0}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Forma:</span>
+                                <span className="font-medium text-blue-600">{advancedAnalysisData.formAnalysis.home?.form || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Tendência:</span>
+                                <span className="font-medium text-purple-600">{advancedAnalysisData.formAnalysis.home?.trend || 'N/A'}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-gray-800 mb-3">Time Visitante</h4>
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Últimos 10 jogos:</span>
+                                <span className="font-medium">{advancedAnalysisData.formAnalysis.away?.wins || 0}V {advancedAnalysisData.formAnalysis.away?.draws || 0}E {advancedAnalysisData.formAnalysis.away?.losses || 0}D</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Gols Marcados:</span>
+                                <span className="font-medium">{advancedAnalysisData.formAnalysis.away?.goalsFor || 0}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Gols Sofridos:</span>
+                                <span className="font-medium">{advancedAnalysisData.formAnalysis.away?.goalsAgainst || 0}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Forma:</span>
+                                <span className="font-medium text-blue-600">{advancedAnalysisData.formAnalysis.away?.form || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Tendência:</span>
+                                <span className="font-medium text-purple-600">{advancedAnalysisData.formAnalysis.away?.trend || 'N/A'}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Análise Over/Under */}
+                    {advancedAnalysisData.overUnderAnalysis && (
+                      <div className="bg-white p-6 rounded-lg border border-gray-200">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                          🎯 Análise Over/Under
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="text-center p-4 bg-blue-50 rounded-lg border border-blue-200">
+                            <div className="text-sm text-blue-600 mb-1">Over 2.5</div>
+                            <div className="text-2xl font-bold text-blue-700">
+                              {advancedAnalysisData.overUnderAnalysis.over25Probability?.toFixed(0) || 'N/A'}%
+                            </div>
+                          </div>
+                          <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
+                            <div className="text-sm text-green-600 mb-1">Over 3.5</div>
+                            <div className="text-2xl font-bold text-green-700">
+                              {advancedAnalysisData.overUnderAnalysis.over35Probability?.toFixed(0) || 'N/A'}%
+                            </div>
+                          </div>
+                          <div className="text-center p-4 bg-red-50 rounded-lg border border-red-200">
+                            <div className="text-sm text-red-600 mb-1">Under 2.5</div>
+                            <div className="text-2xl font-bold text-red-700">
+                              {advancedAnalysisData.overUnderAnalysis.under25Probability?.toFixed(0) || 'N/A'}%
+                            </div>
+                          </div>
+                        </div>
+                        {advancedAnalysisData.overUnderAnalysis.recommendation && (
+                          <div className="mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                            <div className="text-sm font-medium text-yellow-800 mb-1">🎯 Recomendação:</div>
+                            <p className="text-sm text-yellow-700">{advancedAnalysisData.overUnderAnalysis.recommendation}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Insights de Apostas */}
+                    {advancedAnalysisData.bettingInsights && (
+                      <div className="bg-white p-6 rounded-lg border border-gray-200">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                          💰 Insights de Apostas
+                        </h3>
+                        <div className="space-y-4">
+                          {advancedAnalysisData.bettingInsights.recommendedBets && advancedAnalysisData.bettingInsights.recommendedBets.length > 0 && (
+                            <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                              <div className="text-sm font-medium text-green-800 mb-2">🎯 Apostas Recomendadas:</div>
+                              <ul className="space-y-1">
+                                {advancedAnalysisData.bettingInsights.recommendedBets.map((bet, index) => (
+                                  <li key={index} className="text-sm text-green-700 flex items-center gap-2">
+                                    <span>•</span>
+                                    {bet}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {advancedAnalysisData.bettingInsights.keyFactors && advancedAnalysisData.bettingInsights.keyFactors.length > 0 && (
+                            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                              <div className="text-sm font-medium text-blue-800 mb-2">🔑 Fatores Chave:</div>
+                              <ul className="space-y-1">
+                                {advancedAnalysisData.bettingInsights.keyFactors.map((factor, index) => (
+                                  <li key={index} className="text-sm text-blue-700 flex items-center gap-2">
+                                    <span>•</span>
+                                    {factor}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {advancedAnalysisData.bettingInsights.betsToAvoid && advancedAnalysisData.bettingInsights.betsToAvoid.length > 0 && (
+                            <div className="p-4 bg-red-50 rounded-lg border border-red-200">
+                              <div className="text-sm font-medium text-red-800 mb-2">⚠️ Apostas a Evitar:</div>
+                              <ul className="space-y-1">
+                                {advancedAnalysisData.bettingInsights.betsToAvoid.map((bet, index) => (
+                                  <li key={index} className="text-sm text-red-700 flex items-center gap-2">
+                                    <span>•</span>
+                                    {bet}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Avaliação de Risco */}
+                    {advancedAnalysisData.riskAssessment && (
+                      <div className="bg-white p-6 rounded-lg border border-gray-200">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                          ⚠️ Avaliação de Risco
+                        </h3>
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                            <div>
+                              <div className="text-sm text-gray-600">Nível de Risco</div>
+                              <div className="text-xl font-bold text-gray-800">{advancedAnalysisData.riskAssessment.level}</div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-sm text-gray-600">Score</div>
+                              <div className="text-xl font-bold text-gray-800">{advancedAnalysisData.riskAssessment.score}/100</div>
+                            </div>
+                          </div>
+                          {advancedAnalysisData.riskAssessment.factors && advancedAnalysisData.riskAssessment.factors.length > 0 && (
+                            <div className="p-4 bg-orange-50 rounded-lg border border-orange-200">
+                              <div className="text-sm font-medium text-orange-800 mb-2">🔍 Fatores de Risco:</div>
+                              <ul className="space-y-1">
+                                {advancedAnalysisData.riskAssessment.factors.map((factor, index) => (
+                                  <li key={index} className="text-sm text-orange-700 flex items-center gap-2">
+                                    <span>•</span>
+                                    {factor}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="text-gray-400 text-6xl mb-4">❌</div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Erro ao carregar análise</h3>
+                    <p className="text-gray-600">Não foi possível carregar os dados da análise avançada.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,10 +1,72 @@
 const axios = require('axios');
 const cacheService = require('./cacheService');
+const advancedAnalysisService = require('./advancedAnalysisService');
 
 class PredictionsService {
   constructor() {
     this.baseURL = process.env.API_SPORTS_BASE_URL || 'https://v3.football.api-sports.io';
     this.apiKey = process.env.API_SPORTS_KEY;
+  }
+
+  /**
+   * 🚀 NOVA: Análise completa avançada de uma fixture
+   * @param {number} fixtureId - ID da fixture
+   * @param {boolean} forceRefresh - Força atualização ignorando cache
+   * @returns {Object} Análise completa avançada
+   */
+  async getAdvancedFixtureAnalysis(fixtureId, forceRefresh = false) {
+    try {
+      // Validar fixtureId
+      if (!fixtureId || isNaN(fixtureId) || fixtureId <= 0) {
+        console.error(`❌ Fixture ID inválido: ${fixtureId}`);
+        return {
+          success: false,
+          error: 'ID da fixture inválido',
+          details: 'O ID da fixture deve ser um número válido'
+        };
+      }
+
+      // Verificar cache primeiro (se não for force refresh)
+      if (!forceRefresh) {
+        const cachedData = await cacheService.getCache('advanced-analysis', { fixtureId });
+        if (cachedData) {
+          console.log(`📦 Retornando análise avançada da fixture ${fixtureId} do cache`);
+          return {
+            success: true,
+            data: cachedData,
+            fromCache: true,
+            timestamp: new Date().toISOString()
+          };
+        }
+      }
+
+      console.log(`🔍 Iniciando análise avançada para fixture ${fixtureId}`);
+
+      // Buscar análise avançada
+      const advancedAnalysis = await advancedAnalysisService.getCompleteFixtureAnalysis(fixtureId);
+
+      if (!advancedAnalysis.success) {
+        return advancedAnalysis;
+      }
+
+      // Salvar no cache por 30 minutos (análise avançada é mais pesada)
+      await cacheService.setCache('advanced-analysis', { fixtureId }, advancedAnalysis.data, 1800);
+
+      return {
+        success: true,
+        data: advancedAnalysis.data,
+        fromCache: false,
+        timestamp: new Date().toISOString()
+      };
+
+    } catch (error) {
+      console.error(`❌ Erro na análise avançada para fixture ${fixtureId}:`, error.message);
+      return {
+        success: false,
+        error: 'Erro na análise avançada',
+        details: error.message
+      };
+    }
   }
 
   /**
@@ -37,6 +99,9 @@ class PredictionsService {
             timestamp: new Date().toISOString()
           };
         }
+      } else {
+        console.log(`🔄 Force refresh: limpando cache para fixture ${fixtureId}`);
+        await cacheService.deleteCache('predictions', { fixtureId });
       }
 
       console.log(`🔮 Buscando predições para fixture ${fixtureId}`);
@@ -60,7 +125,7 @@ class PredictionsService {
       const predictionData = response.data.response[0];
       
       // Processar e estruturar os dados
-      const processedData = this.processPredictionData(predictionData);
+      const processedData = this.processPredictionData(predictionData, fixtureId);
 
       // Salvar no cache por 1 hora (predições são atualizadas a cada hora)
       await cacheService.setCache('predictions', { fixtureId }, processedData, 3600);
@@ -94,12 +159,33 @@ class PredictionsService {
   /**
    * Processa e estrutura os dados de predição
    * @param {Object} predictionData - Dados brutos da API
+   * @param {number} fixtureId - ID da fixture (obtido do parâmetro da requisição)
    * @returns {Object} Dados processados
    */
-  processPredictionData(predictionData) {
+  processPredictionData(predictionData, fixtureId) {
     const { predictions, league, teams, comparison, h2h } = predictionData;
 
     return {
+      // Informações da fixture (INCLUINDO O ID NUMÉRICO REAL)
+      fixture: {
+        fixture: {
+          id: fixtureId, // ID numérico real da API (obtido do parâmetro da requisição)
+          date: new Date().toISOString(), // Data atual como fallback
+          status: 'NS', // Status padrão
+          timestamp: Math.floor(Date.now() / 1000), // Timestamp atual
+          timezone: 'UTC',
+          referee: null,
+          venue: null,
+          periods: null
+        },
+        goals: null,
+        score: null,
+        events: null,
+        lineups: null,
+        statistics: null,
+        players: null
+      },
+
       // Predições principais
       predictions: {
         winner: predictions.winner,
@@ -497,10 +583,13 @@ class PredictionsService {
    * @returns {Object} Predições para todas as fixtures
    */
   async getMultipleFixturePredictions(fixtureIds) {
+    console.log('🔍 getMultipleFixturePredictions chamado com:', fixtureIds);
     const results = {};
     const promises = fixtureIds.map(async (fixtureId) => {
       try {
+        console.log(`🔍 Buscando predições para fixture ${fixtureId} (tipo: ${typeof fixtureId})`);
         const result = await this.getFixturePredictions(fixtureId);
+        console.log(`✅ Resultado para fixture ${fixtureId}:`, result.success ? 'sucesso' : 'erro');
         results[fixtureId] = result;
       } catch (error) {
         console.error(`❌ Erro ao buscar predições para fixture ${fixtureId}:`, error);
@@ -512,6 +601,7 @@ class PredictionsService {
     });
 
     await Promise.all(promises);
+    console.log('🔍 Resultados finais:', Object.keys(results));
     return results;
   }
 
