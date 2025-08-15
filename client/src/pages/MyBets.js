@@ -503,11 +503,10 @@ const MyBets = () => {
                   value={newBet.market_type}
                   onChange={(e) => setNewBet({...newBet, market_type: e.target.value})}
                 >
-                  <option value="Corner Kicks">Corner Kicks</option>
-                  <option value="Goals">Goals</option>
-                  <option value="Over/Under">Over/Under</option>
-                  <option value="Both Teams Score">Both Teams Score</option>
-                  <option value="Match Winner">Match Winner</option>
+                  <option value="Corner Kicks">🔄 Corner Kicks</option>
+                  <option value="Over/Under Gols">⚽ Over/Under Gols</option>
+                  <option value="Both Teams Score">🎯 Both Teams Score</option>
+                  <option value="Match Winner">🏆 Match Winner</option>
                 </select>
               </div>
               <div className="form-group">

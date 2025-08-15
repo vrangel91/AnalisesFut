@@ -254,7 +254,7 @@ class BettingService {
           // Se tem resultado e o jogo terminou, calcular resultado
           if (matchResult && matchResult.match_status === 'finished') {
             console.log(`   ✅ Jogo finalizado, calculando resultado da aposta...`);
-            const result = this.calculateBetResult(bet, matchResult);
+            const result = await this.calculateBetResult(bet, matchResult);
             await this.updateBetResult(bet.id, result.status, result.actualResult, result.profitLoss);
             updatedCount++;
             console.log(`   🎯 Aposta ${bet.id} atualizada: ${result.status} - ${result.actualResult}`);
@@ -284,7 +284,7 @@ class BettingService {
   }
 
   // Calcular resultado de uma aposta
-  calculateBetResult(bet, matchResult) {
+  async calculateBetResult(bet, matchResult) {
     const { prediction, market_type, stake, odds } = bet;
     const { home_score, away_score, total_goals } = matchResult;
     
@@ -298,6 +298,7 @@ class BettingService {
       switch (market_type) {
         case 'Over/Under':
         case 'Goals':
+        case 'Over/Under Gols':
           // Extrair número da predição (ex: "Over 2.5 gols" -> 2.5)
           const numberMatch = prediction.match(/(\d+(?:\.\d+)?)/);
           if (!numberMatch) {
@@ -314,6 +315,51 @@ class BettingService {
           } else {
             isGreen = total_goals < target;
             actualResult = `Under ${target} (${total_goals} gols)`;
+          }
+          break;
+          
+        case 'Corner Kicks':
+          // Buscar dados de corner kicks da API
+          try {
+            console.log(`🔍 Buscando dados de corner kicks para fixture ${bet.fixture_id}`);
+            const cornerKicksService = require('./cornerKicksStatisticsService');
+            const cornerStats = await cornerKicksService.getCornerKicksStatistics(bet.fixture_id);
+            
+            if (!cornerStats || !cornerStats.cornerKicks) {
+              console.log(`❌ Dados de corner kicks não disponíveis para fixture ${bet.fixture_id}`);
+              isGreen = false;
+              actualResult = 'Dados de corner kicks não disponíveis';
+              break;
+            }
+            
+            const totalCorners = cornerStats.cornerKicks.total;
+            console.log(`📊 Total de corner kicks: ${totalCorners}`);
+            
+            // Extrair número da predição (ex: "Over 6.5 corner kicks" -> 6.5)
+            const numberMatch = prediction.match(/(\d+(?:\.\d+)?)/);
+            if (!numberMatch) {
+              console.log(`❌ Não foi possível extrair número da predição: ${prediction}`);
+              isGreen = false;
+              actualResult = 'Erro na predição de corner kicks';
+              break;
+            }
+            
+            const target = parseFloat(numberMatch[1]);
+            const isOver = prediction.toLowerCase().includes('over');
+            
+            if (isOver) {
+              isGreen = totalCorners > target;
+              actualResult = `Over ${target} (${totalCorners} corner kicks)`;
+            } else {
+              isGreen = totalCorners < target;
+              actualResult = `Under ${target} (${totalCorners} corner kicks)`;
+            }
+            
+            console.log(`✅ Resultado corner kicks: ${isGreen ? 'GREEN' : 'LOSS'} - ${actualResult}`);
+          } catch (error) {
+            console.error(`❌ Erro ao verificar corner kicks:`, error.message);
+            isGreen = false;
+            actualResult = 'Erro ao verificar corner kicks';
           }
           break;
           

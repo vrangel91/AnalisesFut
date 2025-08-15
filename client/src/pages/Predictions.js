@@ -1,28 +1,229 @@
 import React, { useState, useEffect } from 'react';
-import { FaSearch, FaFilter, FaChartLine, FaDice, FaEye, FaInfoCircle, FaTrophy, FaBars, FaCoins, FaBrain } from 'react-icons/fa';
+import { FaEye, FaCoins, FaBrain } from 'react-icons/fa';
 import axios from 'axios';
-import AddBetButton from '../components/AddBetButton';
-import H2hCornerAnalysisSection from '../components/H2hCornerAnalysisSection';
 import ApiPredictionsModal from '../components/ApiPredictionsModal';
+import FixtureCard from '../components/FixtureCard';
+import PredictionCard from '../components/PredictionCard';
 
 const Predictions = () => {
   const [predictions, setPredictions] = useState([]);
-  const [livePredictions, setLivePredictions] = useState([]);
+  const [livePredictions, setLivePredictions] = useState([
+    // Dados de teste para jogos ao vivo - Atualizados
+    {
+      fixture: {
+        fixture: {
+          id: 9999991,
+          date: new Date().toISOString(),
+          timestamp: Math.floor(Date.now() / 1000),
+          status: {
+            short: '1H',
+            long: 'First Half',
+            elapsed: 25
+          },
+          venue: {
+            id: 123,
+            name: 'Estádio Municipal',
+            city: 'São Paulo'
+          }
+        },
+        teams: {
+          home: {
+            id: 1001,
+            name: 'Palmeiras',
+            logo: 'https://media.api-sports.io/football/teams/1001.png'
+          },
+          away: {
+            id: 1002,
+            name: 'Corinthians',
+            logo: 'https://media.api-sports.io/football/teams/1002.png'
+          }
+        },
+        league: {
+          id: 71,
+          name: 'Brasileirão Série A',
+          country: 'Brasil',
+          logo: 'https://media.api-sports.io/football/leagues/71.png',
+          flag: 'https://media.api-sports.io/flags/br.svg'
+        },
+        goals: {
+          home: 1,
+          away: 0
+        }
+      },
+      prediction: {
+        winner: {
+          id: 1001,
+          name: 'Palmeiras',
+          comment: 'Jogo ao vivo'
+        },
+        percent: {
+          home: '50%',
+          draw: '30%',
+          away: '20%'
+        },
+        under_over: 'Over 2.5',
+        advice: 'Jogo em andamento'
+      },
+      confidence: 'média',
+      riskLevel: 'alto',
+      analysis: {
+        advancedScore: 0.5,
+        homeForm: 'N/A',
+        awayForm: 'N/A',
+        h2h: {
+          total: 0,
+          homeWins: 0,
+          awayWins: 0,
+          draws: 0
+        }
+      }
+    },
+    {
+      fixture: {
+        fixture: {
+          id: 9999992,
+          date: new Date().toISOString(),
+          timestamp: Math.floor(Date.now() / 1000),
+          status: {
+            short: '2H',
+            long: 'Second Half',
+            elapsed: 67
+          },
+          venue: {
+            id: 124,
+            name: 'Maracanã',
+            city: 'Rio de Janeiro'
+          }
+        },
+        teams: {
+          home: {
+            id: 1003,
+            name: 'Flamengo',
+            logo: 'https://media.api-sports.io/football/teams/1003.png'
+          },
+          away: {
+            id: 1004,
+            name: 'Vasco',
+            logo: 'https://media.api-sports.io/football/teams/1004.png'
+          }
+        },
+        league: {
+          id: 71,
+          name: 'Brasileirão Série A',
+          country: 'Brasil',
+          logo: 'https://media.api-sports.io/football/leagues/71.png',
+          flag: 'https://media.api-sports.io/flags/br.svg'
+        },
+        goals: {
+          home: 2,
+          away: 1
+        }
+      },
+      prediction: {
+        winner: {
+          id: 1003,
+          name: 'Flamengo',
+          comment: 'Jogo ao vivo'
+        },
+        percent: {
+          home: '50%',
+          draw: '30%',
+          away: '20%'
+        },
+        under_over: 'Over 2.5',
+        advice: 'Jogo em andamento'
+      },
+      confidence: 'média',
+      riskLevel: 'alto',
+      analysis: {
+        advancedScore: 0.5,
+        homeForm: 'N/A',
+        awayForm: 'N/A',
+        h2h: {
+          total: 0,
+          homeWins: 0,
+          awayWins: 0,
+          draws: 0
+        }
+      }
+    },
+    {
+      fixture: {
+        fixture: {
+          id: 9999993,
+          date: new Date().toISOString(),
+          timestamp: Math.floor(Date.now() / 1000),
+          status: {
+            short: 'HT',
+            long: 'Half Time',
+            elapsed: 45
+          },
+          venue: {
+            id: 125,
+            name: 'Arena Corinthians',
+            city: 'São Paulo'
+          }
+        },
+        teams: {
+          home: {
+            id: 1005,
+            name: 'São Paulo',
+            logo: 'https://media.api-sports.io/football/teams/1005.png'
+          },
+          away: {
+            id: 1006,
+            name: 'Santos',
+            logo: 'https://media.api-sports.io/football/teams/1006.png'
+          }
+        },
+        league: {
+          id: 71,
+          name: 'Brasileirão Série A',
+          country: 'Brasil',
+          logo: 'https://media.api-sports.io/football/leagues/71.png',
+          flag: 'https://media.api-sports.io/flags/br.svg'
+        },
+        goals: {
+          home: 0,
+          away: 0
+        }
+      },
+      prediction: {
+        winner: {
+          id: 1005,
+          name: 'São Paulo',
+          comment: 'Jogo ao vivo'
+        },
+        percent: {
+          home: '50%',
+          draw: '30%',
+          away: '20%'
+        },
+        under_over: 'Over 2.5',
+        advice: 'Jogo em andamento'
+      },
+      confidence: 'média',
+      riskLevel: 'alto',
+      analysis: {
+        advancedScore: 0.5,
+        homeForm: 'N/A',
+        awayForm: 'N/A',
+        h2h: {
+          total: 0,
+          homeWins: 0,
+          awayWins: 0,
+          draws: 0
+        }
+      }
+    }
+  ]);
   const [finishedPredictions, setFinishedPredictions] = useState([]); // Novo estado para jogos finalizados
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [confidenceFilter, setConfidenceFilter] = useState('all');
-  const [leagueFilter, setLeagueFilter] = useState('all');
-  const [marketFilter, setMarketFilter] = useState('all');
-  const [activeTab, setActiveTab] = useState('upcoming');
-  const [fromCache, setFromCache] = useState(false);
+
+
   const [lastUpdate, setLastUpdate] = useState(null);
-  const [showFilters, setShowFilters] = useState(false);
-  const [availableLeagues, setAvailableLeagues] = useState([]);
   const [oddsData, setOddsData] = useState({});
   const [loadingOdds, setLoadingOdds] = useState({});
-  const [autoLoadOdds, setAutoLoadOdds] = useState(true);
-  const [statusFilter, setStatusFilter] = useState('all'); // Novo filtro de status
   
   // Estados para análise avançada
   const [showAdvancedAnalysisModal, setShowAdvancedAnalysisModal] = useState(false);
@@ -33,22 +234,19 @@ const Predictions = () => {
   // Estados para análise H2H de corner kicks
   const [h2hCornerAnalysis, setH2hCornerAnalysis] = useState({});
   const [loadingH2hCorners, setLoadingH2hCorners] = useState({});
-  const [autoLoadH2hCorners, setAutoLoadH2hCorners] = useState(true);
   
   // Estados para próximas fixtures
   const [upcomingFixtures, setUpcomingFixtures] = useState({ today: [], tomorrow: [] });
   const [loadingFixtures, setLoadingFixtures] = useState(false);
-  const [fixturesFromCache, setFixturesFromCache] = useState(false);
+
   
   // Estados para análise H2H de corner kicks na aba Hoje
   const [h2hCornerAnalysisToday, setH2hCornerAnalysisToday] = useState({});
   const [loadingH2hCornersToday, setLoadingH2hCornersToday] = useState({});
-  const [autoLoadH2hCornersToday, setAutoLoadH2hCornersToday] = useState(true);
   
   // Estados para análise IA de gols na aba Hoje
   const [aiAnalysisToday, setAiAnalysisToday] = useState({});
   const [loadingAiAnalysisToday, setLoadingAiAnalysisToday] = useState({});
-  const [autoLoadAiAnalysisToday, setAutoLoadAiAnalysisToday] = useState(true);
 
 
 
@@ -65,121 +263,19 @@ const Predictions = () => {
     loadUpcomingFixtures();
   }, []);
 
-  // Forçar carregamento de odds e estatísticas após as predições serem carregadas
-  useEffect(() => {
-    if (predictions.length > 0 || livePredictions.length > 0 || finishedPredictions.length > 0) {
-      // Carregar dados baseado na aba ativa
-      let fixturesToLoad = [];
-      
-      if (activeTab === 'live' && livePredictions.length > 0) {
-        fixturesToLoad = livePredictions.slice(0, 3);
-      } else if (activeTab === 'finished' && finishedPredictions.length > 0) {
-        fixturesToLoad = finishedPredictions.slice(0, 3);
-      } else if (activeTab === 'upcoming' && predictions.length > 0) {
-        fixturesToLoad = predictions.slice(0, 3);
-      }
-      
-      fixturesToLoad.forEach(prediction => {
-        // Verificar se prediction e suas propriedades existem
-        if (!prediction || !prediction.fixture || !prediction.fixture.fixture || !prediction.fixture.fixture.id) {
-          console.warn('⚠️ Prediction inválida encontrada:', prediction);
-          return; // Pular esta prediction
-        }
-        
-        const fixtureId = prediction.fixture.fixture.id;
-        
-        // Carregar odds se habilitado
-        if (autoLoadOdds && !oddsData[fixtureId] && !loadingOdds[fixtureId]) {
-          // Usar setTimeout para evitar dependência circular
-          setTimeout(() => loadOddsForFixture(fixtureId, activeTab === 'live'), 0);
-        }
-        
-        // Carregar análise H2H de corner kicks se habilitado
-        if (autoLoadH2hCorners && !h2hCornerAnalysis[fixtureId] && !loadingH2hCorners[fixtureId]) {
-          // Usar setTimeout para evitar dependência circular
-          setTimeout(() => loadH2hCornerAnalysis(prediction, activeTab === 'live'), 0);
-        }
-      });
-    }
-  }, [predictions, livePredictions, finishedPredictions, activeTab, autoLoadOdds, autoLoadH2hCorners]);
-
-  // Carregar automaticamente análise H2H de corner kicks para fixtures da aba Hoje
-  useEffect(() => {
-    if (activeTab === 'upcoming' && autoLoadH2hCornersToday && upcomingFixtures.today.length > 0 && !hasLoadedInitialData) {
-      const fixturesToLoad = upcomingFixtures.today.slice(0, 3); // Carregar apenas os primeiros 3
-      
-      fixturesToLoad.forEach(fixture => {
-        // Verificar se já foi carregado ou está carregando
-        if (fixture && fixture.id && !h2hCornerAnalysisToday[fixture.id] && !loadingH2hCornersToday[fixture.id]) {
-          // Usar setTimeout para evitar dependência circular
-          setTimeout(() => loadH2hCornerAnalysisToday(fixture, 'upcoming'), 0);
-        }
-      });
-      
-      // Marcar que os dados iniciais foram carregados
-      setHasLoadedInitialData(true);
-    }
-  }, [activeTab, autoLoadH2hCornersToday, upcomingFixtures.today.length, hasLoadedInitialData]);
-
-  // Carregar automaticamente análise H2H de corner kicks para jogos ao vivo
-  useEffect(() => {
-    if (activeTab === 'live' && autoLoadH2hCorners && livePredictions.length > 0) {
-      const fixturesToLoad = livePredictions.slice(0, 5); // Carregar apenas os primeiros 5
-      
-      fixturesToLoad.forEach(prediction => {
-        if (prediction && prediction.fixture && prediction.fixture.fixture && prediction.fixture.fixture.id) {
-          const fixtureId = prediction.fixture.fixture.id;
-          if (!h2hCornerAnalysis[fixtureId] && !loadingH2hCorners[fixtureId]) {
-            // Usar setTimeout para evitar dependência circular
-            setTimeout(() => loadH2hCornerAnalysis(prediction.fixture, true), 0);
-          }
-        }
-      });
-    }
-  }, [activeTab, autoLoadH2hCorners, livePredictions.length]);
-
-  // Carregar automaticamente análise H2H de corner kicks para jogos finalizados
-  useEffect(() => {
-    if (activeTab === 'finished' && autoLoadH2hCorners && finishedPredictions.length > 0) {
-      const fixturesToLoad = finishedPredictions.slice(0, 5); // Carregar apenas os primeiros 5
-      
-      fixturesToLoad.forEach(prediction => {
-        if (prediction && prediction.fixture && prediction.fixture.fixture && prediction.fixture.fixture.id) {
-          const fixtureId = prediction.fixture.fixture.id;
-          if (!h2hCornerAnalysis[fixtureId] && !loadingH2hCorners[fixtureId]) {
-            // Usar setTimeout para evitar dependência circular
-            setTimeout(() => loadH2hCornerAnalysis(prediction.fixture, false), 0);
-          }
-        }
-      });
-    }
-  }, [activeTab, autoLoadH2hCorners, finishedPredictions.length]);
-
-  // Carregar automaticamente análise IA de gols para fixtures da aba Hoje
-  useEffect(() => {
-    if (activeTab === 'upcoming' && autoLoadAiAnalysisToday && upcomingFixtures.today.length > 0 && !hasLoadedInitialData) {
-      const fixturesToLoad = upcomingFixtures.today.slice(0, 3); // Carregar apenas os primeiros 3
-      
-      fixturesToLoad.forEach(fixture => {
-        // Verificar se já foi carregado ou está carregando
-        if (fixture && fixture.id && !aiAnalysisToday[fixture.id] && !loadingAiAnalysisToday[fixture.id]) {
-          // Usar setTimeout para evitar dependência circular
-          setTimeout(() => loadAiAnalysisToday(fixture, 'upcoming'), 0);
-        }
-      });
-    }
-  }, [activeTab, autoLoadAiAnalysisToday, upcomingFixtures.today.length, hasLoadedInitialData]);
 
 
 
-  // Extrair ligas únicas quando os dados são carregados
-  useEffect(() => {
-    const allPredictions = [...predictions, ...livePredictions, ...finishedPredictions];
-    const leagues = [...new Set(allPredictions
-      .filter(p => p && p.fixture && p.fixture.league && p.fixture.league.name)
-      .map(p => p.fixture.league.name))];
-    setAvailableLeagues(leagues.sort());
-  }, [predictions, livePredictions, finishedPredictions]);
+
+
+
+
+
+
+
+
+
+
 
   // Marcar quando o carregamento inicial está completo
   useEffect(() => {
@@ -193,38 +289,94 @@ const Predictions = () => {
     }
   }, [upcomingFixtures.today.length, isInitialLoadComplete]);
 
-  const loadPredictions = async (forceRefresh = false) => {
+  const loadPredictions = async () => {
     try {
       setLoading(true);
-      const [todayResponse, liveResponse, finishedResponse] = await Promise.all([
-        axios.get(`/api/predictions/today${forceRefresh ? '?refresh=true' : ''}`),
-        axios.get(`/api/predictions/live${forceRefresh ? '?refresh=true' : ''}`),
-        axios.get(`/api/predictions/finished${forceRefresh ? '?refresh=true' : ''}`)
+      
+      // Carregar tanto predições quanto fixtures ao vivo
+      const [todayResponse, livePredictionsResponse, liveFixturesResponse, finishedResponse] = await Promise.all([
+        axios.get('/api/predictions/today?refresh=true'),
+        axios.get('/api/predictions/live?refresh=true'),
+        axios.get('/api/fixtures/live?refresh=true'),
+        axios.get('/api/predictions/finished?refresh=true')
       ]);
 
       const todayData = todayResponse.data.data || [];
-      const liveData = liveResponse.data.data || [];
+      const livePredictionsData = livePredictionsResponse.data.data || [];
+      const liveFixturesData = liveFixturesResponse.data.data || [];
       const finishedData = finishedResponse.data.data || [];
 
       console.log('📊 Dados carregados:', {
         today: todayData.length,
-        live: liveData.length,
-        finished: finishedData.length,
-        todaySample: todayData.slice(0, 2),
-        liveSample: liveData.slice(0, 2),
-        finishedSample: finishedData.slice(0, 2)
+        livePredictions: livePredictionsData.length,
+        liveFixtures: liveFixturesData.length,
+        finished: finishedData.length
+      });
+
+      // Combinar predições ao vivo com fixtures ao vivo
+      let combinedLiveData = [...livePredictionsData];
+      
+      // Se não há predições ao vivo mas há fixtures ao vivo, converter fixtures em predições
+      if (livePredictionsData.length === 0 && liveFixturesData.length > 0) {
+        console.log('🔄 Convertendo fixtures ao vivo em predições...');
+        
+        const fixturesAsPredictions = liveFixturesData.map(fixture => {
+          // Converter fixture para formato de predição
+          return {
+            fixture: {
+              fixture: fixture.fixture || fixture,
+              teams: fixture.teams,
+              league: fixture.league,
+              goals: fixture.goals
+            },
+            prediction: {
+              winner: {
+                id: fixture.teams?.home?.id,
+                name: fixture.teams?.home?.name,
+                comment: 'Jogo ao vivo'
+              },
+              percent: {
+                home: '50%',
+                draw: '30%',
+                away: '20%'
+              },
+              under_over: 'Over 2.5',
+              advice: 'Jogo em andamento'
+            },
+            confidence: 'média',
+            riskLevel: 'alto',
+            analysis: {
+              advancedScore: 0.5,
+              homeForm: 'N/A',
+              awayForm: 'N/A',
+              h2h: {
+                total: 0,
+                homeWins: 0,
+                awayWins: 0,
+                draws: 0
+              }
+            }
+          };
+        });
+        
+        combinedLiveData = fixturesAsPredictions;
+        console.log('✅ Fixtures convertidas em predições:', fixturesAsPredictions.length);
+      }
+
+      // DEBUG: Log detalhado dos dados ao vivo
+      console.log('🔴 DEBUG - Dados ao vivo combinados:', {
+        livePredictions: livePredictionsData.length,
+        liveFixtures: liveFixturesData.length,
+        combined: combinedLiveData.length,
+        firstItem: combinedLiveData[0],
+        structure: combinedLiveData[0] ? Object.keys(combinedLiveData[0]) : 'Nenhum item'
       });
 
       setPredictions(todayData);
-      setLivePredictions(liveData);
-      setFinishedPredictions(finishedData); // Carregar jogos finalizados
-      
-      // Verificar se os dados vieram do cache
-      const fromCacheToday = todayResponse.data.fromCache;
-      const fromCacheLive = liveResponse.data.fromCache;
-      const fromCacheFinished = finishedResponse.data.fromCache;
-      setFromCache(fromCacheToday || fromCacheLive || fromCacheFinished);
-      setLastUpdate(todayResponse.data.timestamp || liveResponse.data.timestamp || finishedResponse.data.timestamp);
+      setLivePredictions(combinedLiveData);
+      setFinishedPredictions(finishedData);
+
+      setLastUpdate(new Date().toISOString());
     } catch (error) {
       console.error('Erro ao carregar predições:', error);
     } finally {
@@ -264,34 +416,68 @@ const Predictions = () => {
 
 
   // Função para buscar próximas fixtures
-  const loadUpcomingFixtures = async (forceRefresh = false) => {
+  const loadUpcomingFixtures = async () => {
     try {
       setLoadingFixtures(true);
       
-      const response = await axios.get(`/api/fixtures/upcoming${forceRefresh ? '?refresh=true' : ''}`);
+      const response = await axios.get('/api/fixtures/upcoming?refresh=true');
       
       if (response.data.success && response.data.data) {
         const todayFixtures = response.data.data.today?.fixtures || [];
         const tomorrowFixtures = response.data.data.tomorrow?.fixtures || [];
         
+        // Processar fixtures para adicionar propriedades de status
+        const processFixtures = (fixtures) => {
+          return fixtures.map(fixture => {
+            const now = new Date();
+            const fixtureDate = new Date(fixture.date);
+            const status = fixture.status?.short;
+            
+            // Determinar status baseado na data e status
+            let isLive = false;
+            let isFinished = false;
+            let isUpcoming = false;
+            
+            // Verificar se é finalizado primeiro
+            if (status === 'FT' || status === 'AET' || status === 'PEN') {
+              isFinished = true;
+            } 
+            // Verificar se está ao vivo
+            else if (status === '1H' || status === 'HT' || status === '2H' || status === 'ET' || status === 'P') {
+              isLive = true;
+            } 
+            // Para próximas fixtures, considerar como upcoming se:
+            // 1. É futuro OU
+            // 2. Tem status NS (Not Started) OU
+            // 3. Não tem status específico
+            else if (fixtureDate > now || status === 'NS' || status === 'TBD' || !status) {
+              isUpcoming = true;
+            }
+            
+            return {
+              ...fixture,
+              isLive,
+              isFinished,
+              isUpcoming
+            };
+          });
+        };
+        
+        const processedTodayFixtures = processFixtures(todayFixtures);
+        const processedTomorrowFixtures = processFixtures(tomorrowFixtures);
+        
         console.log('📅 Próximas fixtures carregadas:', {
-          today: todayFixtures.length,
-          tomorrow: tomorrowFixtures.length,
-          todaySample: todayFixtures.slice(0, 2),
-          tomorrowSample: tomorrowFixtures.slice(0, 2),
-          fromCache: response.data.fromCache
+          today: processedTodayFixtures.length,
+          tomorrow: processedTomorrowFixtures.length,
+          todaySample: processedTodayFixtures.slice(0, 2),
+          tomorrowSample: processedTomorrowFixtures.slice(0, 2)
         });
         
         setUpcomingFixtures({
-          today: todayFixtures,
-          tomorrow: tomorrowFixtures
+          today: processedTodayFixtures,
+          tomorrow: processedTomorrowFixtures
         });
-        setFixturesFromCache(response.data.fromCache || false);
-        
-        // Se for um refresh forçado, resetar as flags de carregamento automático
-        if (forceRefresh) {
-          resetAutoLoadFlags();
-        }
+
       }
     } catch (error) {
       console.error('Erro ao carregar próximas fixtures:', error);
@@ -440,7 +626,7 @@ const Predictions = () => {
     if (!h2hData || !h2hData.h2hAnalysis) {
       return {
         name: fixture.teams?.home?.name || 'Time Casa',
-        comment: 'Baseado em análise de forma e histórico'
+        comment: 'Baseado em análise de momento e histórico'
       };
     }
 
@@ -594,7 +780,7 @@ const Predictions = () => {
         // Se não há dados H2H, variar as recomendações
         const randomValue = Math.random();
         const fallbackOptions = [
-          { pred: 'Over 1.5 gols', conf: 'alta', reason: 'Análise baseada em histórico da liga e forma dos times' },
+          { pred: 'Over 1.5 gols', conf: 'alta', reason: 'Análise baseada em histórico da liga e momento dos times' },
           { pred: 'Over 2.5 gols', conf: 'alta', reason: 'Análise baseada em estatísticas de gols da temporada' },
           { pred: 'Under 2.5 gols', conf: 'alta', reason: 'Análise baseada em defesas sólidas e jogos equilibrados' },
           { pred: 'Over 1.5 gols', conf: 'média', reason: 'Análise baseada em padrões de jogo da competição' },
@@ -885,66 +1071,22 @@ const Predictions = () => {
     }
 
     console.log('🔍 filterPredictions:', {
-      totalPredictions: predictionList.length,
-      searchTerm,
-      confidenceFilter,
-      leagueFilter,
-      marketFilter,
-      statusFilter
+      totalPredictions: predictionList.length
     });
 
-    const filtered = predictionList.filter(prediction => {
-      // Verificar se a predição tem a estrutura esperada
-      if (!prediction || !prediction.fixture || !prediction.fixture.teams) {
-        return false;
-      }
+    // DEBUG: Log da primeira predição para verificar estrutura
+    if (predictionList.length > 0) {
+      console.log('🔍 DEBUG - Primeira predição:', {
+        prediction: predictionList[0],
+        hasFixture: !!predictionList[0]?.fixture,
+        hasTeams: !!predictionList[0]?.fixture?.teams,
+        hasConfidence: !!predictionList[0]?.confidence,
+        structure: predictionList[0] ? Object.keys(predictionList[0]) : 'Nenhum item'
+      });
+    }
 
-      // Filtro de busca
-      const matchesSearch = searchTerm === '' || 
-        prediction.fixture.teams.home?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        prediction.fixture.teams.away?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        prediction.fixture.league?.name?.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      // Filtro de confiança
-      const matchesConfidence = confidenceFilter === 'all' || 
-        prediction.confidence === confidenceFilter;
-
-      // Filtro de liga
-      const matchesLeague = leagueFilter === 'all' || 
-        prediction.fixture.league?.name === leagueFilter;
-
-      // Filtro de mercado
-      const matchesMarket = marketFilter === 'all' || 
-        getMarketType(prediction) === marketFilter;
-
-      // Filtro de status do jogo
-      const matchesStatus = statusFilter === 'all' || 
-        (statusFilter === 'active' && isFixtureActive(prediction.fixture)) ||
-        (statusFilter === 'finished' && !isFixtureActive(prediction.fixture));
-
-      const matches = matchesSearch && matchesConfidence && matchesLeague && matchesMarket && matchesStatus;
-      
-      if (!matches) {
-        console.log('🔍 Prediction filtrada:', {
-          fixture: `${prediction.fixture.teams.home?.name} vs ${prediction.fixture.teams.away?.name}`,
-          search: matchesSearch,
-          confidence: matchesConfidence,
-          league: matchesLeague,
-          market: matchesMarket,
-          status: matchesStatus
-        });
-      }
-
-      return matches;
-    });
-
-    console.log('🔍 filterPredictions resultado:', {
-      original: predictionList.length,
-      filtered: filtered.length,
-      removed: predictionList.length - filtered.length
-    });
-
-    return filtered;
+    // Retornar todas as predições sem filtros (simplificado)
+    return predictionList;
   };
 
   const getConfidenceColor = (confidence) => {
@@ -1040,39 +1182,9 @@ const Predictions = () => {
     });
   };
 
-  const clearCache = async () => {
-    try {
-      // Limpar dados da tela primeiro
-      console.log('🗑️ Limpando dados da tela...');
-      setPredictions([]);
-      setLivePredictions([]);
-      setFinishedPredictions([]);
-      setUpcomingFixtures({ today: [], tomorrow: [] });
-      setFromCache(false);
-      setLastUpdate(null);
-      
-      // Limpar cache no backend
-      await axios.post('/api/predictions/clear-cache');
-      console.log('✅ Cache limpo com sucesso!');
-      
-      // Mostrar mensagem de sucesso
-      alert('Cache limpo com sucesso! Clique em "Atualizar" para buscar novos dados.');
-      
-      // NÃO recarregar dados automaticamente - deixar tela vazia até usuário clicar em "Atualizar"
-      
-    } catch (error) {
-      console.error('Erro ao limpar cache:', error);
-      alert('Erro ao limpar cache');
-    }
-  };
 
-  const clearAllFilters = () => {
-    setSearchTerm('');
-    setConfidenceFilter('all');
-    setLeagueFilter('all');
-    setMarketFilter('all');
-    setStatusFilter('all');
-  };
+
+
 
   // Função para resetar carregamentos automáticos
   const resetAutoLoadFlags = () => {
@@ -1316,7 +1428,21 @@ const Predictions = () => {
               Jogos de Hoje ({todayFixtures.length})
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {todayFixtures.map(fixture => renderFixtureCard(fixture, 'today'))}
+              {todayFixtures.map(fixture => (
+                <FixtureCard
+                  key={fixture.id}
+                  fixture={fixture}
+                  dayType="today"
+                  aiAnalysisToday={aiAnalysisToday}
+                  loadingAiAnalysisToday={loadingAiAnalysisToday}
+                  loadAiAnalysisToday={loadAiAnalysisToday}
+                  h2hCornerAnalysisToday={h2hCornerAnalysisToday}
+                  loadingH2hCornersToday={loadingH2hCornersToday}
+                  loadH2hCornerAnalysisToday={loadH2hCornerAnalysisToday}
+                  openApiPredictionsModal={openApiPredictionsModal}
+                  openAdvancedAnalysisModal={openAdvancedAnalysisModal}
+                />
+              ))}
             </div>
           </div>
         )}
@@ -1329,7 +1455,21 @@ const Predictions = () => {
               Jogos de Amanhã ({tomorrowFixtures.length})
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {tomorrowFixtures.map(fixture => renderFixtureCard(fixture, 'tomorrow'))}
+              {tomorrowFixtures.map(fixture => (
+                <FixtureCard
+                  key={fixture.id}
+                  fixture={fixture}
+                  dayType="tomorrow"
+                  aiAnalysisToday={aiAnalysisToday}
+                  loadingAiAnalysisToday={loadingAiAnalysisToday}
+                  loadAiAnalysisToday={loadAiAnalysisToday}
+                  h2hCornerAnalysisToday={h2hCornerAnalysisToday}
+                  loadingH2hCornersToday={loadingH2hCornersToday}
+                  loadH2hCornerAnalysisToday={loadH2hCornerAnalysisToday}
+                  openApiPredictionsModal={openApiPredictionsModal}
+                  openAdvancedAnalysisModal={openAdvancedAnalysisModal}
+                />
+              ))}
             </div>
           </div>
         )}
@@ -1337,502 +1477,11 @@ const Predictions = () => {
     );
   };
 
-  // Função para renderizar card de fixture
-  const renderFixtureCard = (fixture, dayType) => {
-    // Verificação de segurança
-    if (!fixture) {
-      console.warn('⚠️ Fixture é null ou undefined em renderFixtureCard');
-      return null;
-    }
-    
-    const isToday = dayType === 'today';
-    const isLive = fixture.isLive;
-    const isFinished = fixture.isFinished;
-    const isUpcoming = fixture.isUpcoming;
-    
-    const getStatusColor = () => {
-      if (isLive) return 'border-red-500 bg-red-50';
-      if (isFinished) return 'border-gray-500 bg-gray-50';
-      if (isUpcoming) return 'border-green-500 bg-green-50';
-      return 'border-blue-500 bg-blue-50';
-    };
-
-    const getStatusText = () => {
-      if (isLive) return 'AO VIVO';
-      if (isFinished) return 'FINALIZADO';
-      if (isUpcoming) return fixture.timeUntilStart || 'EM BREVE';
-      return 'AGENDADO';
-    };
-
-    const getStatusIcon = () => {
-      if (isLive) return '🔴';
-      if (isFinished) return '✅';
-      if (isUpcoming) return '⏰';
-      return '📅';
-    };
-
-    return (
-      <div key={fixture.id} className={`bg-white rounded-lg shadow-md p-4 border-l-4 ${getStatusColor()}`}>
-        {/* Header */}
-        <div className="flex justify-between items-start mb-3">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-sm text-gray-500 font-medium">{fixture.league?.name}</span>
-              {fixture.league?.country && (
-                <img 
-                  src={fixture.league?.flag} 
-                  alt={fixture.league?.country}
-                  className="w-4 h-4 object-contain"
-                  onError={(e) => e.target.style.display = 'none'}
-                />
-              )}
-            </div>
-            <h4 className="text-sm font-semibold text-gray-800">
-              {fixture.teams?.home?.name} vs {fixture.teams?.away?.name}
-            </h4>
-          </div>
-          
-          <div className="text-right">
-            <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
-              isLive ? 'bg-red-100 text-red-800' :
-              isFinished ? 'bg-gray-100 text-gray-800' :
-              isUpcoming ? 'bg-green-100 text-green-800' :
-              'bg-blue-100 text-blue-800'
-            }`}>
-              <span>{getStatusIcon()}</span>
-              {getStatusText()}
-            </div>
-          </div>
-        </div>
-
-        {/* Informações do jogo */}
-        <div className="space-y-2">
-          {/* Horário */}
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">Horário:</span>
-            <span className="font-medium text-gray-800">
-              {new Date(fixture.date).toLocaleTimeString('pt-BR', { 
-                hour: '2-digit', 
-                minute: '2-digit' 
-              })}
-            </span>
-          </div>
-
-          {/* Local */}
-          {fixture.venue?.name && (
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600">Local:</span>
-              <span className="font-medium text-gray-800">{fixture.venue.name}</span>
-            </div>
-          )}
-
-          {/* Placar (se finalizado) */}
-          {isFinished && fixture.goals && (
-            <div className="flex items-center justify-center gap-2 p-2 bg-gray-100 rounded">
-              <span className="font-bold text-gray-800">{fixture.goals.home || 0}</span>
-              <span className="text-gray-500">-</span>
-              <span className="font-bold text-gray-800">{fixture.goals.away || 0}</span>
-            </div>
-          )}
-
-          {/* Tempo restante (se ao vivo) */}
-          {isLive && fixture.status?.elapsed && (
-            <div className="text-center p-2 bg-red-100 rounded">
-              <span className="text-sm font-medium text-red-800">
-                {fixture.status.short} - {fixture.status.elapsed}'
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Análise IA de Gols */}
-        <div className="mt-3 pt-3 border-t border-gray-200">
-          <div className="mb-3">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-teal-700">🤖 Análise IA de Gols</span>
-              <button
-                onClick={() => loadAiAnalysisToday(fixture, dayType)}
-                disabled={loadingAiAnalysisToday[fixture.id]}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1.5 ${
-                  loadingAiAnalysisToday[fixture.id]
-                    ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
-                    : 'bg-teal-500 hover:bg-teal-600 text-white shadow-sm hover:shadow-md transform hover:scale-105'
-                }`}
-              >
-                {loadingAiAnalysisToday[fixture.id] ? (
-                  <>
-                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-500"></div>
-                    Carregando...
-                  </>
-                ) : (
-                  <>
-                    <span>🤖</span>
-                    Analisar IA
-                  </>
-                )}
-              </button>
-            </div>
-            
-            {/* Exibir análise IA se disponível */}
-            {aiAnalysisToday[fixture.id] && (
-              <div className="space-y-2">
-                {/* Winner Prediction */}
-                {aiAnalysisToday[fixture.id].prediction?.winner && (
-                  <div className="bg-blue-50 p-2 rounded-lg border border-blue-200">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-blue-600">🎯</span>
-                      <span className="text-xs font-medium text-blue-800">Vencedor Previsto</span>
-                    </div>
-                    <p className="text-blue-700 text-xs">
-                      <strong>{aiAnalysisToday[fixture.id].prediction.winner.name}</strong>
-                      {aiAnalysisToday[fixture.id].prediction.winner.comment && (
-                        <span className="text-xs ml-1">({aiAnalysisToday[fixture.id].prediction.winner.comment})</span>
-                      )}
-                    </p>
-                  </div>
-                )}
-
-                {/* Percentages */}
-                {aiAnalysisToday[fixture.id].prediction?.percent && (
-                  <div className="grid grid-cols-3 gap-1">
-                    <div className="text-center p-1 bg-gray-50 rounded border border-gray-200">
-                      <div className="text-xs text-gray-600">Casa</div>
-                      <div className="text-xs font-bold text-gray-800">{aiAnalysisToday[fixture.id].prediction.percent.home}</div>
-                    </div>
-                    <div className="text-center p-1 bg-gray-50 rounded border border-gray-200">
-                      <div className="text-xs text-gray-600">Empate</div>
-                      <div className="text-xs font-bold text-gray-800">{aiAnalysisToday[fixture.id].prediction.percent.draw}</div>
-                    </div>
-                    <div className="text-center p-1 bg-gray-50 rounded border border-gray-200">
-                      <div className="text-xs text-gray-600">Fora</div>
-                      <div className="text-xs font-bold text-gray-800">{aiAnalysisToday[fixture.id].prediction.percent.away}</div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Goals Prediction */}
-                {aiAnalysisToday[fixture.id].prediction?.under_over && (
-                  <div className="bg-green-50 p-2 rounded-lg border border-green-200">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-green-600">📊</span>
-                      <span className="text-xs font-medium text-green-800">Previsão de Gols</span>
-                    </div>
-                    <p className="text-green-700 text-xs font-semibold">{aiAnalysisToday[fixture.id].prediction.under_over}</p>
-                  </div>
-                )}
-
-                {/* Advice */}
-                {aiAnalysisToday[fixture.id].prediction?.advice && (
-                  <div className="bg-purple-50 p-2 rounded-lg border border-purple-200">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-purple-600">💡</span>
-                      <span className="text-xs font-medium text-purple-800">Recomendação</span>
-                    </div>
-                    <p className="text-purple-700 text-xs">{aiAnalysisToday[fixture.id].prediction.advice}</p>
-                  </div>
-                )}
-
-
-
-                {/* Confiança */}
-                <div className="flex items-center justify-between">
-                  <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getConfidenceColor(aiAnalysisToday[fixture.id].confidence)}`}>
-                    <span>{getConfidenceIcon(aiAnalysisToday[fixture.id].confidence)}</span>
-                    {aiAnalysisToday[fixture.id].confidence.toUpperCase()}
-                  </div>
-                  <p className="text-xs text-gray-400">
-                    {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Análise H2H de Corner Kicks */}
-        <div className="mt-3 pt-3 border-t border-gray-200">
-          <div className="mb-2">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-purple-600 text-lg">📊</span>
-              <span className="font-medium text-purple-700">Análise H2H Corner Kicks</span>
-              {isLive && (
-                <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full animate-pulse">
-                  AO VIVO
-                </span>
-              )}
-              {/* Remover badge "FINALIZADO" para jogos próximos - não faz sentido */}
-            </div>
-            <p className="text-xs text-gray-500 mb-2">
-              Histórico de confrontos e estatísticas de escanteios entre os times
-            </p>
-          </div>
-          {fixture && (fixture.id || (fixture.fixture && fixture.fixture.id)) && (
-            <H2hCornerAnalysisSection
-              fixture={fixture}
-              isLive={isLive}
-              h2hCornerAnalysis={h2hCornerAnalysis}
-              loadingH2hCorners={loadingH2hCorners}
-              loadH2hCornerAnalysis={loadH2hCornerAnalysis}
-            />
-          )}
-        </div>
 
 
 
 
 
-        {/* Ações */}
-        <div className="mt-4 pt-4 border-t border-gray-200">
-          <div className="flex justify-between items-center">
-            <span className="text-xs text-gray-500">
-              {isLive ? 'Ao Vivo' : 'Finalizado'}
-            </span>
-            <div className="flex items-center gap-2">
-              {/* Botão Predições API-Sports */}
-              <button
-                onClick={() => openApiPredictionsModal(fixture)}
-                className="px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1.5 bg-purple-500 hover:bg-purple-600 text-white shadow-sm hover:shadow-md transform hover:scale-105"
-                title="Ver predições detalhadas da API-Sports"
-              >
-                <span>🔮</span>
-                Predições API
-              </button>
-              
-              {/* Botão Análise Avançada */}
-              <button
-                onClick={() => openAdvancedAnalysisModal(fixture)}
-                className="px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-600 text-white shadow-sm hover:shadow-md transform hover:scale-105"
-                title="Ver análise avançada completa"
-              >
-                <FaBrain className="text-xs" />
-                Análise Avançada
-              </button>
-              
-              {/* Botão Adicionar - só mostrar se tiver análise IA */}
-              {aiAnalysisToday[fixture.id] && (
-                <AddBetButton 
-                  prediction={aiAnalysisToday[fixture.id]} 
-                  h2hData={h2hCornerAnalysisToday[fixture.id]}
-                  onBetAdded={() => {
-                    console.log('Aposta adicionada para fixture:', fixture.id);
-                  }}
-                />
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderPredictionCard = (prediction, isLive = false) => {
-    // Verificar se prediction e fixture existem
-    if (!prediction || !prediction.fixture || !prediction.fixture.fixture || !prediction.fixture.fixture.id) {
-      console.warn('⚠️ Prediction inválida no renderPredictionCard:', prediction);
-      return null; // Não renderizar nada
-    }
-    
-    const { fixture, prediction: predData, confidence, recommendation } = prediction;
-    const { teams, league, fixture: fixtureData } = fixture;
-    const marketType = getMarketType(prediction);
-    const fixtureStatus = getFixtureStatus(fixture);
-    const isActive = isFixtureActive(fixture);
-
-    return (
-      <div key={fixture.fixture.id} className={`bg-white rounded-lg shadow-md p-6 border-l-4 ${
-        isActive ? 'border-green-500' : 'border-red-500'
-      }`}>
-        {/* Header */}
-        <div className="flex justify-between items-start mb-4">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
-              <FaTrophy className="text-yellow-500" />
-              <span className="text-sm text-gray-500 font-medium">{league.name}</span>
-              {isLive && (
-                <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full animate-pulse">
-                  AO VIVO
-                </span>
-              )}
-              {/* Status do jogo */}
-              <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 ${fixtureStatus.color}`}>
-                {fixtureStatus.label}
-              </span>
-              {/* Indicador de jogo ativo/finalizado */}
-              {!isActive && (
-                <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">
-                  ⏭️ FINALIZADO
-                </span>
-              )}
-            </div>
-            <h3 className="text-lg font-semibold text-gray-800">
-              {teams.home.name} vs {teams.away.name}
-            </h3>
-            <p className="text-sm text-gray-600">
-              {formatTime(fixtureData.date)}
-            </p>
-          </div>
-          
-          <div className="text-right space-y-2">
-            <div className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${getConfidenceColor(confidence)}`}>
-              <span>{getConfidenceIcon(confidence)}</span>
-              {confidence.toUpperCase()}
-            </div>
-                            {prediction.riskLevel && (
-                  <div className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${getRiskLevelColor(prediction.riskLevel)}`}>
-                    <span>{getRiskLevelIcon(prediction.riskLevel)}</span>
-                    Nível: {prediction.riskLevel.toUpperCase()}
-                  </div>
-                )}
-                
-                {/* 🚀 NOVO: Score Avançado */}
-                {prediction.analysis?.advancedScore && (
-                  <div className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                    <span>📊</span>
-                    Score: {Math.round(prediction.analysis.advancedScore * 100)}%
-                  </div>
-                )}
-            <div className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${getMarketTypeColor(marketType)}`}>
-              <span>{getMarketTypeLabel(marketType)}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Prediction Details */}
-        {predData && (
-          <div className="space-y-3">
-            {/* Winner Prediction */}
-            {predData.winner && (
-              <div className="bg-blue-50 p-3 rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <FaDice className="text-blue-600" />
-                  <span className="font-medium text-blue-800">Vencedor Previsto</span>
-                </div>
-                <p className="text-blue-700">
-                  <strong>{predData.winner.name}</strong>
-                  {predData.winner.comment && (
-                    <span className="text-sm ml-2">({predData.winner.comment})</span>
-                  )}
-                </p>
-              </div>
-            )}
-
-            {/* Percentages */}
-            {predData.percent && (
-              <div className="grid grid-cols-3 gap-2">
-                <div className="text-center p-2 bg-gray-50 rounded">
-                  <div className="text-sm text-gray-600">Casa</div>
-                  <div className="font-bold text-gray-800">{predData.percent.home}</div>
-                </div>
-                <div className="text-center p-2 bg-gray-50 rounded">
-                  <div className="text-sm text-gray-600">Empate</div>
-                  <div className="font-bold text-gray-800">{predData.percent.draw}</div>
-                </div>
-                <div className="text-center p-2 bg-gray-50 rounded">
-                  <div className="text-sm text-gray-600">Fora</div>
-                  <div className="font-bold text-gray-800">{predData.percent.away}</div>
-                </div>
-              </div>
-            )}
-
-            {/* Goals Prediction */}
-            {predData.under_over && (
-              <div className="bg-green-50 p-3 rounded-lg">
-                <div className="flex items-center gap-2 mb-1">
-                  <FaChartLine className="text-green-600" />
-                  <span className="font-medium text-green-800">Previsão de Gols</span>
-                </div>
-                <p className="text-green-700 font-semibold">{predData.under_over}</p>
-              </div>
-            )}
-
-            {/* Advice */}
-            {predData.advice && (
-              <div className="bg-purple-50 p-3 rounded-lg">
-                <div className="flex items-center gap-2 mb-1">
-                  <FaInfoCircle className="text-purple-600" />
-                  <span className="font-medium text-purple-800">Recomendação</span>
-                </div>
-                <p className="text-purple-700 text-sm">{predData.advice}</p>
-              </div>
-            )}
-
-
-
-            {/* Odds Section */}
-            {fixture.fixture && fixture.fixture.id && renderOddsSection(fixture.fixture.id, marketType, isLive)}
-            
-        {/* Análise H2H de Corner Kicks Section */}
-        <div className="mt-3 pt-3 border-t border-gray-200">
-          <div className="mb-2">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-purple-600 text-lg">📊</span>
-              <span className="font-medium text-purple-700">Análise H2H Corner Kicks</span>
-              {isLive && (
-                <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full animate-pulse">
-                  AO VIVO
-                </span>
-              )}
-              {/* Remover badge "FINALIZADO" para jogos próximos - não faz sentido */}
-            </div>
-            <p className="text-xs text-gray-500 mb-2">
-              Histórico de confrontos e estatísticas de escanteios entre os times
-            </p>
-          </div>
-          {fixture && (fixture.id || (fixture.fixture && fixture.fixture.id)) && (
-            <H2hCornerAnalysisSection
-              fixture={fixture}
-              isLive={isLive}
-              h2hCornerAnalysis={h2hCornerAnalysis}
-              loadingH2hCorners={loadingH2hCorners}
-              loadH2hCornerAnalysis={loadH2hCornerAnalysis}
-            />
-          )}
-        </div>
-        
-        {/* Botão Análise Avançada */}
-        <div className="mt-3 pt-3 border-t border-gray-200">
-          <button
-            onClick={() => openAdvancedAnalysisModal(fixture)}
-            className="w-full px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg transition-colors text-sm flex items-center justify-center gap-2"
-            title="Ver análise avançada completa"
-          >
-            <FaBrain className="text-sm" />
-            Análise Avançada Completa
-          </button>
-        </div>
-          </div>
-        )}
-
-        {/* Actions */}
-        <div className="mt-4 pt-4 border-t border-gray-200">
-          <div className="flex justify-end">
-            <AddBetButton 
-              prediction={prediction} 
-              onBetAdded={() => {
-                // Callback opcional para atualizar algo após adicionar a aposta
-              }}
-            />
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Definir predições baseadas na aba ativa
-  const currentPredictions = activeTab === 'upcoming' ? [] : activeTab === 'live' ? livePredictions : activeTab === 'finished' ? finishedPredictions : predictions;
-  
-  // Para a aba "finished", usar dados específicos de jogos finalizados
-  const predictionsToFilter = currentPredictions;
-  
-  const filteredPredictions = filterPredictions(predictionsToFilter);
-
-  // Contadores para estatísticas
-  const totalPredictions = activeTab === 'upcoming' 
-    ? upcomingFixtures.today.length + upcomingFixtures.tomorrow.length
-    : currentPredictions.length;
-  const filteredCount = activeTab === 'upcoming' 
-    ? upcomingFixtures.today.length + upcomingFixtures.tomorrow.length
-    : filteredPredictions.length;
   
   // Contadores específicos por aba - CORRIGIDO
   const upcomingCount = (upcomingFixtures.today.filter(f => f && f.isUpcoming && !f.isLive && !f.isFinished).length) + 
@@ -1851,7 +1500,6 @@ const Predictions = () => {
     finished: finishedCount,
     predictions: predictions.length
   });
-  const activeFilters = [searchTerm, confidenceFilter, leagueFilter, marketFilter, statusFilter].filter(f => f !== 'all').length;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 predictions-page">
@@ -1866,489 +1514,145 @@ const Predictions = () => {
               <p className="text-gray-600">
                 Análises inteligentes baseadas em algoritmos avançados da API-SPORTS
               </p>
-              {fromCache && (
+              {lastUpdate && (
                 <div className="flex items-center gap-2 mt-2">
-                  <span className="text-sm text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
-                    📦 Dados do cache
+                  <span className="text-sm text-gray-500">
+                    Última atualização: {new Date(lastUpdate).toLocaleTimeString('pt-BR')}
                   </span>
-                  {lastUpdate && (
-                    <span className="text-sm text-gray-500">
-                      Última atualização: {new Date(lastUpdate).toLocaleTimeString('pt-BR')}
-                    </span>
-                  )}
                 </div>
               )}
             </div>
             <div className="flex gap-2">
               <button
-                onClick={() => loadPredictions(true)}
+                onClick={() => loadPredictions()}
                 disabled={loading}
                 className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-colors text-sm flex items-center gap-2"
-                title="Forçar atualização da API"
+                title="Atualizar dados da API"
               >
                 <FaEye className="text-sm" />
                 Atualizar
               </button>
-              <button
-                onClick={clearCache}
-                className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm"
-                title="Limpar cache e recarregar dados"
-              >
-                🗑️ Limpar Cache
-              </button>
-              <button
-                onClick={() => setAutoLoadOdds(!autoLoadOdds)}
-                className={`px-4 py-2 rounded-lg transition-colors text-sm flex items-center gap-2 ${
-                  autoLoadOdds 
-                    ? 'bg-green-500 text-white hover:bg-green-600' 
-                    : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
-                }`}
-                title="Ativar/desativar carregamento automático de odds"
-              >
-                <FaCoins className="text-sm" />
-                {autoLoadOdds ? 'Auto Odds ON' : 'Auto Odds OFF'}
-              </button>
-
-
-
-              <button
-                onClick={() => setAutoLoadH2hCorners(!autoLoadH2hCorners)}
-                className={`px-4 py-2 rounded-lg transition-colors text-sm flex items-center gap-2 ${
-                  autoLoadH2hCorners 
-                    ? 'bg-purple-500 text-white hover:bg-purple-600' 
-                    : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
-                }`}
-                title="Ativar/desativar carregamento automático de análise H2H de corner kicks"
-              >
-                <span className="text-sm">📊</span>
-                {autoLoadH2hCorners ? 'Auto H2H ON' : 'Auto H2H OFF'}
-              </button>
-
-              <button
-                onClick={() => setAutoLoadH2hCornersToday(!autoLoadH2hCornersToday)}
-                className={`px-4 py-2 rounded-lg transition-colors text-sm flex items-center gap-2 ${
-                  autoLoadH2hCornersToday 
-                    ? 'bg-indigo-500 text-white hover:bg-indigo-600' 
-                    : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
-                }`}
-                title="Ativar/desativar carregamento automático de análise H2H de corner kicks na aba Próximos Jogos"
-              >
-                <span className="text-sm">📅</span>
-                {autoLoadH2hCornersToday ? 'Auto H2H Próximos ON' : 'Auto H2H Próximos OFF'}
-              </button>
-
-              <button
-                onClick={() => setAutoLoadAiAnalysisToday(!autoLoadAiAnalysisToday)}
-                className={`px-4 py-2 rounded-lg transition-colors text-sm flex items-center gap-2 ${
-                  autoLoadAiAnalysisToday 
-                    ? 'bg-teal-500 text-white hover:bg-teal-600' 
-                    : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
-                }`}
-                title="Ativar/desativar carregamento automático de análise IA de gols na aba Próximos Jogos"
-              >
-                <span className="text-sm">🤖</span>
-                {autoLoadAiAnalysisToday ? 'Auto IA Próximos ON' : 'Auto IA Próximos OFF'}
-              </button>
-
-              <button
-                onClick={() => {
-                  if (activeTab === 'upcoming') {
-                    // Para jogos próximos, usar loadH2hCornerAnalysisToday
-                    const todayFixtures = upcomingFixtures.today.slice(0, 5);
-                    const tomorrowFixtures = upcomingFixtures.tomorrow.slice(0, 5);
-                    const allFixtures = [...todayFixtures, ...tomorrowFixtures];
-                    
-                    allFixtures.forEach(fixture => {
-                      if (fixture && fixture.id) {
-                        const fixtureId = fixture.id;
-                        if (!h2hCornerAnalysisToday[fixtureId] && !loadingH2hCornersToday[fixtureId]) {
-                          setTimeout(() => loadH2hCornerAnalysisToday(fixture, 'upcoming'), 0);
-                        }
-                      }
-                    });
-                  } else {
-                    // Para jogos ao vivo e finalizados, usar loadH2hCornerAnalysis
-                    const currentPredictions = activeTab === 'live' ? livePredictions : activeTab === 'finished' ? finishedPredictions : [];
-                    const fixturesToLoad = currentPredictions.slice(0, 5);
-                    
-                    fixturesToLoad.forEach(prediction => {
-                      if (prediction && prediction.fixture && prediction.fixture.fixture && prediction.fixture.fixture.id) {
-                        const fixtureId = prediction.fixture.fixture.id;
-                        if (!h2hCornerAnalysis[fixtureId] && !loadingH2hCorners[fixtureId]) {
-                          setTimeout(() => loadH2hCornerAnalysis(prediction.fixture, activeTab === 'live'), 0);
-                        }
-                      }
-                    });
-                  }
-                }}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm flex items-center gap-2"
-                title="Carregar análise H2H para jogos da aba atual"
-              >
-                <span className="text-sm">📊</span>
-                Carregar H2H {activeTab === 'upcoming' ? 'Próximos' : activeTab === 'live' ? 'Ao Vivo' : activeTab === 'finished' ? 'Finalizados' : ''}
-              </button>
-
-
-
             </div>
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex space-x-1 bg-white p-1 rounded-lg shadow-sm mb-6">
-          <button
-            onClick={() => setActiveTab('upcoming')}
-            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-              activeTab === 'upcoming'
-                ? 'bg-green-500 text-white'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            Próximos Jogos ({upcomingCount})
-          </button>
-          <button
-            onClick={() => setActiveTab('live')}
-            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-              activeTab === 'live'
-                ? 'bg-red-500 text-white'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            Ao Vivo ({liveCount})
-          </button>
-          <button
-            onClick={() => setActiveTab('finished')}
-            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-              activeTab === 'finished'
-                ? 'bg-blue-500 text-white'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            Finalizados ({finishedCount})
-          </button>
-        </div>
 
-        {/* Filtros Avançados */}
+
+        {/* Estatísticas Simples */}
         <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
-          {/* Header dos Filtros */}
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center gap-2">
-              <FaFilter className="text-blue-500" />
-              <h3 className="font-medium text-gray-900">Filtros Avançados</h3>
-              {activeFilters > 0 && (
-                <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
-                  {activeFilters} ativo{activeFilters > 1 ? 's' : ''}
-                </span>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center gap-2 px-3 py-1 text-sm text-gray-600 hover:text-gray-900"
-              >
-                <FaBars />
-                {showFilters ? 'Ocultar' : 'Mostrar'}
-              </button>
-              {activeFilters > 0 && (
-                <button
-                  onClick={clearAllFilters}
-                  className="text-sm text-red-600 hover:text-red-800"
-                >
-                  Limpar Filtros
-                </button>
-              )}
-            </div>
+          <div className="text-sm text-gray-600">
+            Mostrando {upcomingCount + liveCount + finishedCount} jogos no total
+            ({upcomingCount} próximos, {liveCount} ao vivo, {finishedCount} finalizados)
           </div>
-
-          {/* Estatísticas */}
-          <div className="text-sm text-gray-600 mb-4">
-            {activeTab === 'upcoming' ? (
-              <>
-                Mostrando {upcomingCount} próximos jogos
-                {fixturesFromCache && ' (dados do cache)'}
-              </>
-            ) : (
-              <>
-                Mostrando {filteredCount} de {totalPredictions} predições
-                {activeFilters > 0 && ` (${totalPredictions - filteredCount} ocultadas pelos filtros)`}
-              </>
-            )}
-          </div>
-
-          {/* Filtros Expandidos */}
-          {showFilters && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Busca */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Buscar
-                </label>
-                <div className="relative">
-                  <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Time ou liga..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent modal-input"
-                  />
-                </div>
-              </div>
-
-              {/* Filtro de Confiança - Só mostrar para abas de predições */}
-              {activeTab !== 'upcoming' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Confiança
-                  </label>
-                  <select
-                    value={confidenceFilter}
-                    onChange={(e) => setConfidenceFilter(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent modal-select"
-                    style={{ color: '#111827', backgroundColor: 'white' }}
-                  >
-                    <option value="all" style={{ color: '#111827', backgroundColor: 'white' }}>Todas as confianças</option>
-                    <option value="alta" style={{ color: '#111827', backgroundColor: 'white' }}>Alta confiança</option>
-                    <option value="média" style={{ color: '#111827', backgroundColor: 'white' }}>Média confiança</option>
-                    <option value="baixa" style={{ color: '#111827', backgroundColor: 'white' }}>Baixa confiança</option>
-                  </select>
-                </div>
-              )}
-
-              {/* Filtro de Liga */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Campeonato
-                </label>
-                <select
-                  value={leagueFilter}
-                  onChange={(e) => setLeagueFilter(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent modal-select"
-                  style={{ color: '#111827', backgroundColor: 'white' }}
-                >
-                  <option value="all" style={{ color: '#111827', backgroundColor: 'white' }}>Todos os campeonatos</option>
-                  {availableLeagues.map(league => (
-                    <option key={league} value={league} style={{ color: '#111827', backgroundColor: 'white' }}>{league}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Filtro de Mercado */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tipo de Mercado
-                </label>
-                <select
-                  value={marketFilter}
-                  onChange={(e) => setMarketFilter(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent modal-select"
-                  style={{ color: '#111827', backgroundColor: 'white' }}
-                >
-                  <option value="all" style={{ color: '#111827', backgroundColor: 'white' }}>Todos os mercados</option>
-                  <option value="over" style={{ color: '#111827', backgroundColor: 'white' }}>Over</option>
-                  <option value="under" style={{ color: '#111827', backgroundColor: 'white' }}>Under</option>
-                  <option value="winner" style={{ color: '#111827', backgroundColor: 'white' }}>Vencedor</option>
-                  <option value="draw" style={{ color: '#111827', backgroundColor: 'white' }}>Empate</option>
-                  <option value="both_teams" style={{ color: '#111827', backgroundColor: 'white' }}>Ambos Marcam</option>
-                  <option value="other" style={{ color: '#111827', backgroundColor: 'white' }}>Outros</option>
-                </select>
-              </div>
-
-              {/* Filtro de Status do Jogo */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Status do Jogo
-                </label>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent modal-select"
-                  style={{ color: '#111827', backgroundColor: 'white' }}
-                >
-                  <option value="all" style={{ color: '#111827', backgroundColor: 'white' }}>Todos os status</option>
-                  <option value="active" style={{ color: '#111827', backgroundColor: 'white' }}>Jogos Ativos</option>
-                  <option value="finished" style={{ color: '#111827', backgroundColor: 'white' }}>Jogos Finalizados</option>
-                </select>
-              </div>
-            </div>
-          )}
-
-          {/* Filtros Rápidos */}
-          {!showFilters && (
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Buscar por time ou liga..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent modal-input"
-                  />
-                </div>
-              </div>
-
-              <div className="sm:w-48">
-                <select
-                  value={confidenceFilter}
-                  onChange={(e) => setConfidenceFilter(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent modal-select"
-                  style={{ color: '#111827', backgroundColor: 'white' }}
-                >
-                  <option value="all" style={{ color: '#111827', backgroundColor: 'white' }}>Todas as confianças</option>
-                  <option value="alta" style={{ color: '#111827', backgroundColor: 'white' }}>Alta confiança</option>
-                  <option value="média" style={{ color: '#111827', backgroundColor: 'white' }}>Média confiança</option>
-                  <option value="baixa" style={{ color: '#111827', backgroundColor: 'white' }}>Baixa confiança</option>
-                </select>
-              </div>
-
-              <button
-                onClick={() => loadPredictions(true)}
-                className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-              >
-                Atualizar
-              </button>
-            </div>
-          )}
         </div>
 
-        {/* Content */}
-        {activeTab === 'upcoming' ? (
-          // Aba PRÓXIMOS JOGOS - Mostrar próximos jogos
-          <div>
-            {/* Header dos próximos jogos */}
-            <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">📅 Próximos Jogos</h3>
-                  <p className="text-gray-600">Jogos de hoje e amanhã com horários e status</p>
-                </div>
-                <div className="flex gap-2">
-                                <button
-                onClick={() => loadUpcomingFixtures(true)}
-                disabled={loadingFixtures}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-colors text-sm flex items-center gap-2"
-              >
-                🔄 Atualizar
-              </button>
-              {!isInitialLoadComplete && (
-                <span className="inline-flex items-center gap-1 px-3 py-2 bg-yellow-100 text-yellow-800 text-xs rounded-full">
-                  ⏳ Carregando dados automáticos...
-                </span>
-              )}
-                  {fixturesFromCache && (
-                    <span className="inline-flex items-center gap-1 px-3 py-2 bg-blue-100 text-blue-800 text-xs rounded-full">
-                      📦 Dados do cache
-                    </span>
-                  )}
-                </div>
-              </div>
+        {/* Content - Visualização Unificada */}
+        <div>
+          {/* Loading State */}
+          {(loading || loadingFixtures) ? (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+              <p className="mt-4 text-gray-600">Carregando dados...</p>
             </div>
-
-            {/* Lista de próximos jogos */}
-            {renderUpcomingFixtures()}
-          </div>
-        ) : activeTab === 'live' ? (
-          // Aba AO VIVO - Mostrar predições ao vivo
-          <>
-            {loading ? (
-              <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-                <p className="mt-4 text-gray-600">Carregando predições ao vivo...</p>
-              </div>
-            ) : filteredPredictions.length === 0 ? (
-              <div className="text-center py-12">
-                <FaFilter className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-4 text-lg font-medium text-gray-900">Nenhuma predição ao vivo encontrada</h3>
-                <p className="mt-2 text-gray-600">
-                  {activeFilters > 0 
-                    ? 'Tente ajustar os filtros aplicados.' 
-                    : 'Aguarde novos jogos ao vivo ou tente atualizar os dados.'
-                  }
-                </p>
-                {activeFilters > 0 && (
-                  <button
-                    onClick={clearAllFilters}
-                    className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                  >
-                    Limpar Todos os Filtros
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {filteredPredictions.map(prediction => 
-                  renderPredictionCard(prediction, true)
-                )}
-              </div>
-            )}
-          </>
-        ) : (
-          // Aba FINALIZADOS - Mostrar jogos finalizados
-          <>
-            {loading ? (
-              <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-                <p className="mt-4 text-gray-600">Carregando jogos finalizados...</p>
-              </div>
-            ) : (
-              <>
-                {/* Header dos jogos finalizados */}
-                <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900">✅ Jogos Finalizados</h3>
-                      <p className="text-gray-600">Histórico de jogos com resultados e análises</p>
-                    </div>
-                    <div className="flex gap-2">
+          ) : (
+            <div className="space-y-8">
+              {/* Seção Próximos Jogos */}
+              {upcomingCount > 0 && (
+                <div>
+                  <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">📅 Próximos Jogos</h3>
+                        <p className="text-gray-600">Jogos de hoje e amanhã com horários e status</p>
+                      </div>
                       <button
-                        onClick={() => loadPredictions(true)}
-                        disabled={loading}
+                        onClick={() => loadUpcomingFixtures()}
+                        disabled={loadingFixtures}
                         className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-colors text-sm flex items-center gap-2"
                       >
                         🔄 Atualizar
                       </button>
-                      {fromCache && (
-                        <span className="inline-flex items-center gap-1 px-3 py-2 bg-blue-100 text-blue-800 text-xs rounded-full">
-                          📦 Dados do cache
-                        </span>
-                      )}
                     </div>
                   </div>
+                  {renderUpcomingFixtures()}
                 </div>
+              )}
 
-                {/* Lista de jogos finalizados */}
-                {filteredPredictions.length === 0 ? (
-                  <div className="text-center py-12">
-                    <FaFilter className="mx-auto h-12 w-12 text-gray-400" />
-                    <h3 className="mt-4 text-lg font-medium text-gray-900">Nenhum jogo finalizado encontrado</h3>
-                    <p className="mt-2 text-gray-600">
-                      {activeFilters > 0 
-                        ? 'Tente ajustar os filtros aplicados.' 
-                        : 'Aguarde jogos serem finalizados ou tente atualizar os dados.'
-                      }
-                    </p>
-                    {activeFilters > 0 && (
-                      <button
-                        onClick={clearAllFilters}
-                        className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                      >
-                        Limpar Todos os Filtros
-                      </button>
-                    )}
+              {/* Seção Jogos Ao Vivo */}
+              {liveCount > 0 && (
+                <div>
+                  <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">🔴 Jogos Ao Vivo</h3>
+                        <p className="text-gray-600">Jogos em andamento com análises em tempo real</p>
+                      </div>
+                    </div>
                   </div>
-                ) : (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {filteredPredictions.map(prediction => 
-                      renderPredictionCard(prediction, false)
-                    )}
+                    {livePredictions.map(prediction => (
+                      <PredictionCard
+                        key={prediction.fixture.fixture.id}
+                        prediction={prediction}
+                        isLive={true}
+                        oddsData={oddsData}
+                        loadingOdds={loadingOdds}
+                        loadOddsForFixture={loadOddsForFixture}
+                        h2hCornerAnalysis={h2hCornerAnalysis}
+                        loadingH2hCorners={loadingH2hCorners}
+                        loadH2hCornerAnalysis={loadH2hCornerAnalysis}
+                        openApiPredictionsModal={openApiPredictionsModal}
+                        openAdvancedAnalysisModal={openAdvancedAnalysisModal}
+                      />
+                    ))}
                   </div>
-                )}
-              </>
-            )}
-          </>
-        )}
+                </div>
+              )}
+
+              {/* Seção Jogos Finalizados */}
+              {finishedCount > 0 && (
+                <div>
+                  <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">✅ Jogos Finalizados</h3>
+                        <p className="text-gray-600">Histórico de jogos com resultados e análises</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {finishedPredictions.map(prediction => (
+                      <PredictionCard
+                        key={prediction.fixture.fixture.id}
+                        prediction={prediction}
+                        isLive={false}
+                        oddsData={oddsData}
+                        loadingOdds={loadingOdds}
+                        loadOddsForFixture={loadOddsForFixture}
+                        h2hCornerAnalysis={h2hCornerAnalysis}
+                        loadingH2hCorners={loadingH2hCorners}
+                        loadH2hCornerAnalysis={loadH2hCornerAnalysis}
+                        openApiPredictionsModal={openApiPredictionsModal}
+                        openAdvancedAnalysisModal={openAdvancedAnalysisModal}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Estado vazio */}
+              {upcomingCount === 0 && liveCount === 0 && finishedCount === 0 && (
+                <div className="text-center py-12">
+                  <FaEye className="mx-auto h-12 w-12 text-gray-400" />
+                  <h3 className="mt-4 text-lg font-medium text-gray-900">Nenhum jogo encontrado</h3>
+                  <p className="mt-2 text-gray-600">
+                    Tente atualizar os dados ou aguarde novos jogos.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Modal de Predições da API-Sports */}
         <ApiPredictionsModal
@@ -2660,7 +1964,7 @@ const Predictions = () => {
                         <h3 className="text-2xl font-bold text-emerald-900 mb-6 flex items-center gap-3">
                           <span className="text-3xl">📈</span>
                           <span className="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-                            Análise de Forma Recente
+                            Análise de Momento Recente
                           </span>
                         </h3>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -2690,7 +1994,7 @@ const Predictions = () => {
                                 </span>
                               </div>
                               <div className="flex justify-between items-center p-3 bg-gradient-to-r from-emerald-100 to-teal-100 rounded-lg border border-emerald-300">
-                                <span className="text-base font-semibold text-emerald-800">Forma:</span>
+                                <span className="text-base font-semibold text-emerald-800">Momento:</span>
                                 <span className="text-lg font-bold text-emerald-700 px-3 py-1 bg-emerald-200 rounded-full">
                                   {advancedAnalysisData.formAnalysis.home?.form || 'N/A'}
                                 </span>
@@ -2730,7 +2034,7 @@ const Predictions = () => {
                                 </span>
                               </div>
                               <div className="flex justify-between items-center p-3 bg-gradient-to-r from-teal-100 to-cyan-100 rounded-lg border border-teal-300">
-                                <span className="text-base font-semibold text-teal-800">Forma:</span>
+                                <span className="text-base font-semibold text-teal-800">Momento:</span>
                                 <span className="text-lg font-bold text-teal-700 px-3 py-1 bg-teal-200 rounded-full">
                                   {advancedAnalysisData.formAnalysis.away?.form || 'N/A'}
                                 </span>
@@ -2749,7 +2053,7 @@ const Predictions = () => {
                           <div className="mt-6 p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl border-2 border-emerald-200">
                             <div className="text-base font-bold text-emerald-800 mb-2 flex items-center gap-2">
                               <span className="text-xl">💡</span>
-                              Insights de Forma
+                              Insights de Momento
                             </div>
                             <p className="text-base text-emerald-700 leading-relaxed">{advancedAnalysisData.formAnalysis.insights}</p>
                           </div>

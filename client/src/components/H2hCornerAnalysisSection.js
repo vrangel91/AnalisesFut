@@ -73,21 +73,13 @@ const H2hCornerAnalysisSection = ({
   if (!analysis) {
     return (
       <div className="bg-purple-50 p-3 rounded-lg">
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-purple-600">📊</span>
-          <span className="font-medium text-purple-700">Análise H2H Corner Kicks</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => loadH2hCornerAnalysis(fixture, isLive)}
-            className="px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1.5 bg-purple-500 hover:bg-purple-600 text-white shadow-sm hover:shadow-md transform hover:scale-105"
-          >
-            <span>📊</span>
-            Carregar análise H2H
-          </button>
-          <span className="text-xs text-gray-400">•</span>
-          <span className="text-xs text-gray-500">Histórico de confrontos</span>
-        </div>
+        <button
+          onClick={() => loadH2hCornerAnalysis(fixture, isLive)}
+          className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 bg-purple-500 hover:bg-purple-600 text-white shadow-sm hover:shadow-md transform hover:scale-105"
+        >
+          <span>📊</span>
+          Carregar análise H2H
+        </button>
       </div>
     );
   }
