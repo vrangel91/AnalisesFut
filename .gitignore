@@ -4,6 +4,10 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Production build
+client/dist/
+client/build/
+
 # Environment variables
 .env
 .env.local
@@ -11,10 +15,21 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
-# Build outputs
-client/build/
-dist/
-build/
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
 # Logs
 logs
@@ -33,7 +48,6 @@ coverage/
 .nyc_output
 
 # Dependency directories
-node_modules/
 jspm_packages/
 
 # Optional npm cache directory
@@ -51,25 +65,27 @@ jspm_packages/
 # dotenv environment variables file
 .env
 
-# IDE files
-.vscode/
-.idea/
-*.swp
-*.swo
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
 
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
+# next.js build output
+.next
 
-# Temporary files
-*.tmp
-*.temp
+# nuxt.js build output
+.nuxt
 
-# Ngrok
-.ngrok2/
-ngrok.yml
+# vuepress build output
+.vuepress/dist
+
+# Serverless directories
+.serverless
+
+# FuseBox cache
+.fusebox/
+
+# DynamoDB Local files
+.dynamodb/
+
+# TernJS port file
+.tern-port

@@ -1,57 +1,32 @@
 {
-  "name": "boasvindasbotbet-client",
-  "version": "0.1.0",
+  "name": "surebets-client",
+  "version": "1.0.0",
   "private": true,
-  "dependencies": {
-    "@testing-library/jest-dom": "^5.16.4",
-    "@testing-library/react": "^13.3.0",
-    "@testing-library/user-event": "^13.5.0",
-    "autoprefixer": "^10.4.14",
-    "axios": "^1.5.0",
-    "chart.js": "^4.2.1",
-    "lodash": "^4.17.21",
-    "moment": "^2.29.4",
-    "postcss": "^8.4.31",
-    "react": "^18.2.0",
-    "react-chartjs-2": "^5.2.0",
-    "react-dom": "^18.2.0",
-    "react-icons": "^4.8.0",
-    "react-router-dom": "^6.8.0",
-    "react-scripts": "^5.0.1",
-    "socket.io-client": "^4.7.2",
-    "tailwindcss": "^3.2.7"
-  },
-  "overrides": {
-    "nth-check": "^2.0.1",
-    "postcss": "^8.4.31",
-    "webpack-dev-server": "^5.2.0"
-  },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "serve": "vue-cli-service serve",
+    "build": "vue-cli-service build",
+    "lint": "vue-cli-service lint"
   },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
+  "dependencies": {
+    "vue": "^3.3.4",
+    "vue-router": "^4.2.5",
+    "axios": "^1.6.0",
+    "@vueuse/core": "^10.4.1"
   },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
-  },
-  "proxy": "http://localhost:3001",
   "devDependencies": {
-    "sass": "^1.90.0"
-  }
+    "@vue/cli-service": "^5.0.8",
+    "@vue/compiler-sfc": "^3.3.4",
+    "@vue/eslint-config-standard": "^8.0.1",
+    "@babel/eslint-parser": "^7.22.5",
+    "eslint": "^8.42.0",
+    "eslint-plugin-vue": "^9.14.1",
+    "sass": "^1.69.0",
+    "sass-loader": "^13.3.2"
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead",
+    "not ie 11"
+  ]
 }

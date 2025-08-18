@@ -1,256 +1,141 @@
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
-const http = require('http');
-const socketIo = require('socket.io');
-const compression = require('compression');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
+const axios = require('axios');
+const WebSocket = require('ws');
 const cron = require('node-cron');
-const fs = require('fs');
-require('dotenv').config({ path: './config.env' });
-
-// Importar rotas
-const fixturesRoutes = require('./src/routes/fixtures');
-const oddsRoutes = require('./src/routes/odds');
-const statisticsRoutes = require('./src/routes/statistics');
-const predictionsRoutes = require('./src/routes/predictions');
-const leaguesRoutes = require('./src/routes/leagues');
-const teamsRoutes = require('./src/routes/teams');
-const h2hRoutes = require('./src/routes/h2h');
-const cacheRoutes = require('./src/routes/cache');
-const betsRoutes = require('./src/routes/bets');
-const ngrokRoutes = require('./src/routes/ngrok');
-const h2hCornersRoutes = require('./src/routes/h2hCorners');
-
-// Importar novas rotas separadas
-const fixtureStatisticsRoutes = require('./src/routes/fixtureStatistics');
-const cornerKicksRoutes = require('./src/routes/cornerKicks');
-const cornerKicksStatisticsRoutes = require('./src/routes/cornerKicksStatistics');
-const apiPredictionsRoutes = require('./src/routes/predictions');
-
-// Importar serviços
-const cacheService = require('./src/services/cacheService');
-const cachedApiService = require('./src/services/cachedApiService');
-const ngrokService = require('./src/services/ngrokService');
+const path = require('path');
 
 const app = express();
-const server = http.createServer(app);
-const io = socketIo(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
-  }
-});
-
-// Middleware de segurança
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      imgSrc: ["'self'", "data:", "https:"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
-    },
-  },
-}));
-
-// Middleware de compressão
-app.use(compression());
-
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100, // limite de 100 requisições por IP
-  message: {
-    success: false,
-    error: 'Muitas requisições. Tente novamente em 15 minutos.'
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-app.use('/api/', limiter);
-
-// Verificar se o diretório build existe
-const buildPath = path.join(__dirname, 'client/build');
-const buildExists = fs.existsSync(buildPath);
+const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(express.static(path.join(__dirname, 'client/dist')));
 
-// Servir arquivos estáticos apenas se o build existir
-if (buildExists) {
-  app.use(express.static(buildPath));
-  console.log('✅ Servindo arquivos estáticos do build de produção');
-} else {
-  console.log('⚠️  Diretório build não encontrado - modo desenvolvimento');
+// WebSocket server
+const wss = new WebSocket.Server({ port: 8080 });
+
+// Estado global
+let surebets = [];
+let isSearching = true;
+let soundEnabled = true;
+let lastSurebetCount = 0;
+
+// Função para buscar surebets da API
+async function fetchSurebets() {
+  try {
+    const response = await axios.get('https://zerolossbet.com/api/fetch_surebets/');
+    const newSurebets = response.data;
+    
+    // Verificar se há novos surebets
+    const currentSurebetCount = Object.keys(newSurebets).length;
+    
+    if (currentSurebetCount > lastSurebetCount && soundEnabled) {
+      // Enviar notificação para todos os clientes conectados
+      wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({
+            type: 'new_surebet',
+            count: currentSurebetCount - lastSurebetCount
+          }));
+        }
+      });
+    }
+    
+    surebets = newSurebets;
+    lastSurebetCount = currentSurebetCount;
+    
+    console.log(`Surebets atualizados: ${currentSurebetCount} encontrados`);
+  } catch (error) {
+    console.error('Erro ao buscar surebets:', error.message);
+  }
 }
 
-// Rotas da API
-app.use('/api/fixtures', fixturesRoutes);
-app.use('/api/odds', oddsRoutes);
-app.use('/api/statistics', statisticsRoutes);
-app.use('/api/predictions', predictionsRoutes);
-app.use('/api/leagues', leaguesRoutes);
-app.use('/api/teams', teamsRoutes);
-app.use('/api/h2h', h2hRoutes);
-app.use('/api/cache', cacheRoutes);
-app.use('/api/bets', betsRoutes);
-app.use('/api/ngrok', ngrokRoutes);
-app.use('/api/h2h-corners', h2hCornersRoutes);
-
-// Novas rotas separadas
-app.use('/api/fixture-statistics', fixtureStatisticsRoutes);
-app.use('/api/fixtures/statistics', fixtureStatisticsRoutes);
-app.use('/api/corner-kicks', cornerKicksRoutes);
-app.use('/api/corner-kicks-statistics', cornerKicksStatisticsRoutes);
-app.use('/api/api-predictions', apiPredictionsRoutes);
-
-// Rota principal
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    message: 'IA de Apostas de Futebol funcionando!',
-    timestamp: new Date().toISOString()
-  });
-});
-
-// Rota para servir o frontend (deve vir DEPOIS das rotas da API)
-app.get('*', (req, res) => {
-  if (buildExists) {
-    res.sendFile(path.join(buildPath, 'index.html'));
-  } else {
-    res.json({ 
-      message: 'Frontend não compilado. Execute "npm run build" no diretório client primeiro.',
-      development: true,
-      buildPath: buildPath
-    });
+// Agendar busca de surebets a cada 30 segundos
+cron.schedule('*/30 * * * * *', () => {
+  if (isSearching) {
+    fetchSurebets();
   }
 });
 
-// Socket.IO para atualizações em tempo real
-io.on('connection', (socket) => {
-  console.log('Cliente conectado:', socket.id);
+// WebSocket connection handler
+wss.on('connection', (ws) => {
+  console.log('Novo cliente conectado');
   
-  socket.on('disconnect', () => {
-    console.log('Cliente desconectado:', socket.id);
-  });
-});
-
-// Exportar io para uso em outros módulos
-app.set('io', io);
-
-// Agendamento de tarefas
-const setupCronJobs = () => {
-  // Limpar cache expirado a cada hora
-  cron.schedule('0 * * * *', async () => {
-    console.log('🧹 Executando limpeza automática do cache...');
+  // Enviar estado atual para o novo cliente
+  try {
+    ws.send(JSON.stringify({
+      type: 'initial_state',
+      surebets: surebets,
+      isSearching: isSearching,
+      soundEnabled: soundEnabled
+    }));
+  } catch (error) {
+    console.error('Erro ao enviar estado inicial:', error);
+  }
+  
+  ws.on('message', (message) => {
     try {
-      await cacheService.cleanExpiredCache();
-      console.log('✅ Limpeza automática concluída');
-    } catch (error) {
-      console.error('❌ Erro na limpeza automática:', error);
-    }
-  });
-
-  // Pré-carregar dados importantes a cada 6 horas
-  cron.schedule('0 */6 * * *', async () => {
-    console.log('🚀 Executando pré-carregamento automático...');
-    try {
-      await cachedApiService.preloadImportantData();
-      console.log('✅ Pré-carregamento automático concluído');
-    } catch (error) {
-      console.error('❌ Erro no pré-carregamento automático:', error);
-    }
-  });
-
-  // Atualizar dados ao vivo a cada 5 minutos
-  cron.schedule('*/5 * * * *', async () => {
-    console.log('🔄 Atualizando dados ao vivo...');
-    try {
-      const liveFixtures = await cachedApiService.getLiveFixtures(true);
-      if (liveFixtures.response && liveFixtures.response.length > 0) {
-        io.emit('liveFixturesUpdate', {
-          data: liveFixtures.response,
-          timestamp: new Date().toISOString()
-        });
+      const data = JSON.parse(message);
+      
+      switch (data.type) {
+        case 'toggle_search':
+          isSearching = data.isSearching;
+          console.log(`Busca ${isSearching ? 'ativada' : 'pausada'}`);
+          break;
+          
+        case 'toggle_sound':
+          soundEnabled = data.soundEnabled;
+          console.log(`Som ${soundEnabled ? 'ativado' : 'desativado'}`);
+          break;
       }
     } catch (error) {
-      console.error('❌ Erro ao atualizar dados ao vivo:', error);
+      console.error('Erro ao processar mensagem:', error);
     }
   });
-};
-
-const PORT = process.env.PORT || 5000;
-
-server.listen(PORT, async () => {
-  console.log(`🚀 Servidor rodando na porta ${PORT}`);
-  console.log(`📊 IA de Apostas de Futebol ativa!`);
-  console.log(`🌐 Acesse: http://localhost:${PORT}`);
   
-  // Inicializar tarefas agendadas
-  setupCronJobs();
+  ws.on('error', (error) => {
+    console.error('Erro no WebSocket:', error);
+  });
   
-  // Iniciar ngrok em desenvolvimento
-  if (process.env.NODE_ENV === 'development') {
-    try {
-      console.log('🚀 Iniciando ngrok para desenvolvimento...');
-      const tunnelUrl = await ngrokService.startTunnel();
-      console.log(`✅ Ngrok iniciado: ${tunnelUrl}`);
-    } catch (error) {
-      console.error('❌ Erro ao iniciar ngrok:', error.message);
-      console.log('⚠️  Servidor continuará funcionando sem ngrok');
-    }
-  }
-  
-  // Pré-carregar dados importantes na inicialização
-  try {
-    console.log('🚀 Inicializando pré-carregamento...');
-    await cachedApiService.preloadImportantData();
-    console.log('✅ Pré-carregamento inicial concluído');
-  } catch (error) {
-    console.error('❌ Erro no pré-carregamento inicial:', error);
-  }
-});
-
-// Graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('🛑 Recebido SIGTERM, fechando servidor...');
-  
-  // Parar ngrok se estiver rodando
-  if (process.env.NODE_ENV === 'development') {
-    try {
-      await ngrokService.stopTunnel();
-    } catch (error) {
-      console.error('❌ Erro ao parar ngrok:', error.message);
-    }
-  }
-  
-  cacheService.close();
-  server.close(() => {
-    console.log('✅ Servidor fechado');
-    process.exit(0);
+  ws.on('close', () => {
+    console.log('Cliente desconectado');
   });
 });
 
-process.on('SIGINT', async () => {
-  console.log('🛑 Recebido SIGINT, fechando servidor...');
-  
-  // Parar ngrok se estiver rodando
-  if (process.env.NODE_ENV === 'development') {
-    try {
-      await ngrokService.stopTunnel();
-    } catch (error) {
-      console.error('❌ Erro ao parar ngrok:', error.message);
-    }
-  }
-  
-  cacheService.close();
-  server.close(() => {
-    console.log('✅ Servidor fechado');
-    process.exit(0);
+// Rotas da API
+app.get('/api/surebets', (req, res) => {
+  res.json(surebets);
+});
+
+app.get('/api/status', (req, res) => {
+  res.json({
+    isSearching,
+    soundEnabled,
+    surebetCount: Object.keys(surebets).length
   });
+});
+
+app.post('/api/toggle-search', (req, res) => {
+  isSearching = req.body.isSearching;
+  res.json({ isSearching });
+});
+
+app.post('/api/toggle-sound', (req, res) => {
+  soundEnabled = req.body.soundEnabled;
+  res.json({ soundEnabled });
+});
+
+// Rota para servir o SPA (sempre)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'client/dist/index.html'));
+});
+
+// Inicializar busca de surebets
+fetchSurebets();
+
+app.listen(PORT, () => {
+  console.log(`Servidor rodando na porta ${PORT}`);
+  console.log(`WebSocket rodando na porta 8080`);
 });
